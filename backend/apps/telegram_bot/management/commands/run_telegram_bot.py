@@ -291,7 +291,7 @@ def _normalize_phone(raw_phone: str) -> str:
     digits = ''.join(ch for ch in raw_phone if ch.isdigit())
     if not digits.startswith('998'):
         digits = f'998{digits[-9:]}'
-    return f'+{digits[:3]} {digits[3:5]} {digits[5:8]} {digits[8:10]} {digits[10:12]}'
+    return f'+{digits}'
 
 
 # ---------------------------------------------------------------------------
