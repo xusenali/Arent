@@ -13,3 +13,4 @@ python-decouple>=3.8
 python-telegram-bot>=21.0
 requests>=2.32
 gunicorn>=22.0
+whitenoise>=6.0
