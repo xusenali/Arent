@@ -152,6 +152,10 @@ SIMPLE_JWT = {
 # --- CORS ---------------------------------------------------------------
 
 CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='http://localhost:5173', cast=Csv())
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r'^https://.*\.vercel\.app$',
+    r'^https://.*\.onrender\.com$',
+]
 
 # --- Cache / Celery -------------------------------------------------------
 
