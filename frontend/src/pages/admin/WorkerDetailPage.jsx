@@ -100,7 +100,7 @@ export default function WorkerDetailPage() {
   return (
     <div className="mx-auto max-w-4xl">
       <button type="button" onClick={() => navigate('/admin/workers')}
-        className="mb-5 flex items-center gap-1.5 text-sm font-medium text-text-muted hover:text-text">
+        className="mb-5 hidden items-center gap-1.5 text-sm font-medium text-text-muted hover:text-text md:flex">
         <ChevronLeftIcon className="h-4 w-4" />
         {t('worker_detail.back')}
       </button>

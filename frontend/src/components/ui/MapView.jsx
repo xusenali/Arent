@@ -36,7 +36,11 @@ const STATUS_COLOR = {
 export default function MapView({ markers, activeMarkerId, onMarkerClick }) {
   const containerRef = useRef(null)
   const mapRef = useRef(null)
-  const layersRef = useRef({})
+  const layersRef = useRef({})       // { [id]: leafletMarker }
+  const statusMapRef = useRef({})    // { [id]: status } — icon rangi uchun
+  const activeIdRef = useRef(activeMarkerId)
+  const onClickRef = useRef(onMarkerClick)
+  onClickRef.current = onMarkerClick
 
   // Xarita bir marta yaratiladi
   useEffect(() => {
@@ -60,14 +64,15 @@ export default function MapView({ markers, activeMarkerId, onMarkerClick }) {
     }
   }, [])
 
-  // Markerlar yangilanganida qayta chizamiz
+  // Markerlar o'zgarganda qayta chizamiz — activeMarkerId bu yerda YO'Q
+  // fitBounds faqat marker soni o'zgarganda ishlaydi
   useEffect(() => {
     const map = mapRef.current
     if (!map) return
 
-    // Eski markerlarni tozalaymiz
     Object.values(layersRef.current).forEach((m) => m.remove())
     layersRef.current = {}
+    statusMapRef.current = {}
 
     if (markers.length === 0) return
 
@@ -75,7 +80,8 @@ export default function MapView({ markers, activeMarkerId, onMarkerClick }) {
 
     markers.forEach((marker) => {
       const color = STATUS_COLOR[marker.status] ?? STATUS_COLOR.default
-      const isActive = marker.id === activeMarkerId
+      statusMapRef.current[marker.id] = marker.status
+      const isActive = marker.id === activeIdRef.current
       const icon = createMarkerIcon(color, isActive)
 
       const updatedText = marker.updatedAt
@@ -91,22 +97,34 @@ export default function MapView({ markers, activeMarkerId, onMarkerClick }) {
           </div>`,
           { className: 'leaflet-popup-dark' }
         )
-        .on('click', () => onMarkerClick?.(marker.id))
+        .on('click', () => onClickRef.current?.(marker.id))
 
       layersRef.current[marker.id] = leafletMarker
       bounds.push([marker.latitude, marker.longitude])
     })
 
     if (bounds.length === 1) {
-      map.setView(bounds[0], 15)
+      map.setView(bounds[0], 14)
     } else if (bounds.length > 1) {
       map.fitBounds(bounds, { padding: [40, 40] })
     }
-  }, [markers, activeMarkerId, onMarkerClick])
+  }, [markers]) // activeMarkerId bu yerda YO'Q — xarita panini saqlab qoladi
 
-  // Aktiv marker o'zgarganda — popup ochiladi
+  // Aktiv marker o'zgarganda — faqat icon va popup yangilanadi, xarita siljimaydi
   useEffect(() => {
+    const prev = activeIdRef.current
+    activeIdRef.current = activeMarkerId
+
+    // Oldingi aktiv marker ikonini oddiyga qaytaramiz
+    if (prev && prev !== activeMarkerId && layersRef.current[prev]) {
+      const color = STATUS_COLOR[statusMapRef.current[prev]] ?? STATUS_COLOR.default
+      layersRef.current[prev].setIcon(createMarkerIcon(color, false))
+    }
+
     if (!activeMarkerId || !layersRef.current[activeMarkerId]) return
+
+    const color = STATUS_COLOR[statusMapRef.current[activeMarkerId]] ?? STATUS_COLOR.default
+    layersRef.current[activeMarkerId].setIcon(createMarkerIcon(color, true))
     layersRef.current[activeMarkerId].openPopup()
   }, [activeMarkerId])
 

@@ -1,5 +1,5 @@
 import { Outlet } from 'react-router-dom'
-import { NavLink, useNavigate } from 'react-router-dom'
+import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import Sidebar from '../components/layout/Sidebar.jsx'
 import {
@@ -11,6 +11,48 @@ import {
   LogoutIcon,
 } from '../components/ui/icons.jsx'
 import { useAuthStore } from '../store/authStore.js'
+
+// Root sahifalar — bu sahifalarda back button kerak emas
+const ROOT_PATHS = [
+  '/admin/dashboard',
+  '/admin/workers',
+  '/admin/map',
+  '/admin/payment-receipts',
+  '/worker/dashboard',
+  '/worker/rules',
+]
+
+function MobileTopBar() {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const { t } = useTranslation()
+
+  const isRoot = ROOT_PATHS.some((p) => location.pathname === p)
+  if (isRoot) return null
+
+  const PAGE_TITLES = {
+    '/admin/workers': t('sidebar.workers'),
+  }
+
+  // Sub-page title — URL dan avtomatik aniqlash
+  const segments = location.pathname.split('/').filter(Boolean)
+  const pageKey = `/${segments.slice(0, 2).join('/')}`
+  const title = PAGE_TITLES[pageKey] ?? ''
+
+  return (
+    <div className="sticky top-0 z-30 flex items-center gap-2 border-b border-border bg-surface px-4 py-3 md:hidden">
+      <button
+        type="button"
+        onClick={() => navigate(-1)}
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border text-text-muted hover:bg-surface-hover hover:text-text active:scale-95 transition"
+        aria-label="Orqaga"
+      >
+        ←
+      </button>
+      {title && <span className="text-sm font-semibold text-text">{title}</span>}
+    </div>
+  )
+}
 
 function BottomNav({ role }) {
   const { t } = useTranslation()
@@ -69,10 +111,13 @@ export default function DashboardLayout({ role }) {
         <Sidebar role={role} />
       </div>
 
-      {/* Main content */}
-      <main className="flex-1 overflow-y-auto px-4 py-6 pb-24 md:px-8 md:py-8 md:pb-8">
-        <Outlet />
-      </main>
+      {/* Right side: top bar (mobile only) + content */}
+      <div className="flex flex-1 flex-col">
+        <MobileTopBar />
+        <main className="flex-1 overflow-y-auto px-4 py-6 pb-24 md:px-8 md:py-8 md:pb-8">
+          <Outlet />
+        </main>
+      </div>
 
       {/* Mobile bottom nav */}
       <BottomNav role={role} />
