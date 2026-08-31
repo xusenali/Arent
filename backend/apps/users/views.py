@@ -188,19 +188,23 @@ class WorkerDocumentUploadView(APIView):
 
 
 class WorkerLocationsView(APIView):
-    """GET /api/admin/locations — faol ishchilarning oxirgi joylashuvi."""
+    """GET /api/admin/locations — barcha faol ishchilarning joylashuv holati."""
 
     permission_classes = [IsSuperAdmin]
 
     def get(self, request):
+        from datetime import timedelta
         from apps.rentals.models import Rental
 
+        # Telegram ulangan barcha faol ishchilar (joylashuvi bo'lmaganlar ham)
         workers = User.objects.filter(
             role=User.Role.WORKER,
             status=User.Status.ACTIVE,
-            latitude__isnull=False,
-            longitude__isnull=False,
+            telegram_chat_id__isnull=False,
         )
+
+        now = timezone.now()
+        threshold = now - timedelta(hours=8)
 
         result = []
         for worker in workers:
@@ -212,14 +216,26 @@ class WorkerLocationsView(APIView):
                 .only('status')
                 .first()
             )
-            result.append({
+
+            updated = worker.location_updated_at
+            if updated is None:
+                freshness = 'never'        # hech qachon ulashmagan
+            elif updated >= threshold:
+                freshness = 'fresh'        # 8 soatdan kam — yashil
+            else:
+                freshness = 'stale'        # 8 soatdan oshgan — sariq
+
+            row = {
                 'worker_id': str(worker.id),
                 'worker_name': worker.full_name,
-                'latitude': float(worker.latitude),
-                'longitude': float(worker.longitude),
                 'rental_status': rental.status if rental else None,
-                'recorded_at': worker.location_updated_at.isoformat() if worker.location_updated_at else None,
-            })
+                'recorded_at': updated.isoformat() if updated else None,
+                'freshness': freshness,    # 'fresh' | 'stale' | 'never'
+            }
+            if worker.latitude is not None and worker.longitude is not None:
+                row['latitude'] = float(worker.latitude)
+                row['longitude'] = float(worker.longitude)
+            result.append(row)
 
         return Response(result)
 

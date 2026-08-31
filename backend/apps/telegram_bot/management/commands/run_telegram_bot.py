@@ -7,6 +7,7 @@ Funksiyalar:
   1. /start      → telefon raqam so'raydi → telegram_chat_id saqlaydi
   2. /reset      → bot ichida parolni tiklash (OTP → yangi parol)
   3. 📍 Location → worker koordinatalarini DBga yozadi (live location ham)
+  4. JobQueue    → har 8 soatda barcha ishchilarga joylashuv eslatmasi
 """
 import logging
 
@@ -23,6 +24,7 @@ from telegram.ext import (
     MessageHandler,
     filters,
 )
+from datetime import timedelta
 
 from apps.telegram_bot.otp import clear_otp, generate_otp_code, get_otp, store_otp
 
@@ -287,6 +289,55 @@ async def reset_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 # Yordamchi
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# 8-soatlik joylashuv eslatmasi (JobQueue)
+# ---------------------------------------------------------------------------
+
+REMINDER_TEXT = (
+    "📍 <b>Joylashuvingizni yangilang!</b>\n\n"
+    "Har 8 soatda joylashuvingizni ulashib turishingiz shart.\n"
+    "Quyidagi tugmani bosib joylashuvingizni yuboring 👇"
+)
+
+REMINDER_INTERVAL = 8 * 3600  # 8 soat (soniyalarda)
+
+
+async def send_location_reminders(context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Har 8 soatda barcha faol ishchilarga joylashuv eslatmasi yuboradi."""
+    from apps.users.models import User
+
+    workers = await sync_to_async(list)(
+        User.objects.filter(
+            role=User.Role.WORKER,
+            status=User.Status.ACTIVE,
+            telegram_chat_id__isnull=False,
+        ).values('telegram_chat_id', 'full_name', 'location_updated_at')
+    )
+
+    now = timezone.now()
+    sent = 0
+    for w in workers:
+        chat_id = w['telegram_chat_id']
+        if not chat_id:
+            continue
+        # 8 soatdan kam vaqt o'tgan bo'lsa eslatma yubormaymiz
+        updated_at = w['location_updated_at']
+        if updated_at and (now - updated_at) < timedelta(hours=8):
+            continue
+        try:
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=REMINDER_TEXT,
+                parse_mode='HTML',
+                reply_markup=LOCATION_KEYBOARD,
+            )
+            sent += 1
+        except Exception as exc:
+            logger.warning("Eslatma yuborib bo'lmadi chat_id=%s: %s", chat_id, exc)
+
+    logger.info("Joylashuv eslatmasi: %d ishchiga yuborildi", sent)
+
+
 def _normalize_phone(raw_phone: str) -> str:
     digits = ''.join(ch for ch in raw_phone if ch.isdigit())
     if not digits.startswith('998'):
@@ -305,7 +356,11 @@ class Command(BaseCommand):
         if not settings.TELEGRAM_BOT_TOKEN:
             raise CommandError('TELEGRAM_BOT_TOKEN sozlanmagan (.env fayliga qarang)')
 
-        application = Application.builder().token(settings.TELEGRAM_BOT_TOKEN).build()
+        application = (
+            Application.builder()
+            .token(settings.TELEGRAM_BOT_TOKEN)
+            .build()
+        )
 
         # /start
         application.add_handler(CommandHandler('start', start))
@@ -336,6 +391,19 @@ class Command(BaseCommand):
             allow_reentry=True,
         )
         application.add_handler(reset_conv)
+
+        # 8-soatlik joylashuv eslatmasi
+        if application.job_queue:
+            application.job_queue.run_repeating(
+                send_location_reminders,
+                interval=REMINDER_INTERVAL,
+                first=60,  # botni ishga tushirgandan 1 daqiqa keyin birinchi tekshiruv
+            )
+            self.stdout.write(self.style.SUCCESS("JobQueue: 8-soatlik eslatma ulandi"))
+        else:
+            self.stdout.write(self.style.WARNING(
+                "JobQueue mavjud emas — pip install python-telegram-bot[job-queue]"
+            ))
 
         self.stdout.write(self.style.SUCCESS(
             "Ashrapov Rent boti ishga tushdi (Ctrl+C — to'xtatish)"
