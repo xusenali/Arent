@@ -1,0 +1,20 @@
+name: Keep Render Alive
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'   # har 10 daqiqada
+  workflow_dispatch:           # qo'lda ham ishga tushirish mumkin
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Render backend
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 60 https://arent-hm8i.onrender.com/health/)
+          echo "Health check status: $STATUS"
+          if [ "$STATUS" != "200" ]; then
+            echo "WARNING: Backend returned $STATUS"
+          else
+            echo "OK: Backend is alive"
+          fi

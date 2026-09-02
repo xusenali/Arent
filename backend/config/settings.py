@@ -99,6 +99,12 @@ else:
 
 AUTH_USER_MODEL = 'users.User'
 
+# bcrypt - PBKDF2 ga qaraganda 5-10x tezroq login uchun
+PASSWORD_HASHERS = [
+    'django.contrib.auth.hashers.BCryptSHA256PasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2PasswordHasher',  # eski parollar uchun fallback
+]
+
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator', 'OPTIONS': {'min_length': 6}},
