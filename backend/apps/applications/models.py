@@ -12,6 +12,33 @@ class WorkerApplication(UUIDModel):
     full_name = models.CharField(max_length=255)
     phone = models.CharField(max_length=20)
     desired_unit_model = models.CharField(max_length=120, null=True, blank=True)
+    unit = models.ForeignKey(
+        'electro_units.ElectroUnit',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='applications',
+    )
+
+    class PeriodType(models.TextChoices):
+        DAILY   = 'daily',   'Kunlik'
+        WEEKLY  = 'weekly',  'Haftalik'
+        MONTHLY = 'monthly', 'Oylik'
+
+    class PayTiming(models.TextChoices):
+        START = 'start', 'Boshida'
+        END   = 'end',   'Oxirida'
+
+    class BatteryCount(models.IntegerChoices):
+        ONE = 1, '1 ta batareya'
+        TWO = 2, '2 ta batareya'
+
+    period_type   = models.CharField(max_length=10, choices=PeriodType.choices, default=PeriodType.WEEKLY)
+    pay_timing    = models.CharField(max_length=10, choices=PayTiming.choices,  default=PayTiming.START)
+    battery_count = models.PositiveSmallIntegerField(
+        choices=BatteryCount.choices, null=True, blank=True,
+        help_text='Faqat skuter uchun: 1 yoki 2 batareya',
+    )
+
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
     created_at = models.DateTimeField(auto_now_add=True)
 

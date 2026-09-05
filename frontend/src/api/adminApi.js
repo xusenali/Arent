@@ -50,10 +50,37 @@ export function fetchPaymentReceipts(status) {
   return apiRequest(`/api/admin/payment-receipts${query}`).then((data) => data.results ?? data)
 }
 
-export function approvePaymentReceipt(id) {
-  return apiRequest(`/api/admin/payment-receipts/${id}/approve`, { method: 'POST' })
+export function approvePaymentReceipt(id, amount) {
+  return apiRequest(`/api/admin/payment-receipts/${id}/approve`, {
+    method: 'POST',
+    body: amount ? { amount } : undefined,
+  })
 }
 
 export function rejectPaymentReceipt(id) {
   return apiRequest(`/api/admin/payment-receipts/${id}/reject`, { method: 'POST' })
+}
+
+export function fetchUpcomingPayments() {
+  return apiRequest('/api/admin/upcoming-payments').then((data) => data.results ?? data)
+}
+
+export function recordCashPayment(rentalId, amount) {
+  return apiRequest('/api/admin/cash-payment', { method: 'POST', body: { rental_id: rentalId, amount } })
+}
+
+export function fetchAdminUnits() {
+  return apiRequest('/api/admin/units').then((data) => data.results ?? data)
+}
+
+export function createAdminUnit(formData) {
+  return apiRequest('/api/admin/units', { method: 'POST', body: formData })
+}
+
+export function updateAdminUnit(id, formData) {
+  return apiRequest(`/api/admin/units/${id}`, { method: 'PATCH', body: formData })
+}
+
+export function deleteAdminUnit(id) {
+  return apiRequest(`/api/admin/units/${id}`, { method: 'DELETE' })
 }

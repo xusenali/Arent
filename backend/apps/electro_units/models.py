@@ -18,6 +18,7 @@ class ElectroUnit(UUIDModel):
     unit_type = models.CharField(max_length=20, choices=UnitType.choices, default=UnitType.SCOOTER)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.AVAILABLE)
     price_per_day = models.DecimalField(max_digits=12, decimal_places=2)
+    description   = models.TextField(null=True, blank=True)
     image = models.ImageField(upload_to='electro_units/', null=True, blank=True)
 
     class Meta:

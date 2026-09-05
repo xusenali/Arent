@@ -196,11 +196,10 @@ class WorkerLocationsView(APIView):
         from datetime import timedelta
         from apps.rentals.models import Rental
 
-        # Telegram ulangan barcha faol ishchilar (joylashuvi bo'lmaganlar ham)
+        # Barcha faol ishchilar (telegram bo'lmaganlar ham ko'rinadi, faqat markeri chiqmaydi)
         workers = User.objects.filter(
             role=User.Role.WORKER,
             status=User.Status.ACTIVE,
-            telegram_chat_id__isnull=False,
         )
 
         now = timezone.now()

@@ -165,3 +165,15 @@ export function VideoIcon(props) {
     </Icon>
   )
 }
+
+export function ScooterIcon(props) {
+  return (
+    <Icon {...props}>
+      <circle cx="6" cy="18" r="2" />
+      <circle cx="18" cy="18" r="2" />
+      <path d="M6 18h5l2-5h4" />
+      <path d="M13 6h3l2 7" />
+      <path d="M9 6h4" />
+    </Icon>
+  )
+}

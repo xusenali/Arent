@@ -21,6 +21,11 @@ class Rental(UUIDModel):
     start_date = models.DateField()
     period_days = models.PositiveIntegerField()
     due_date = models.DateField()
+    class PayTiming(models.TextChoices):
+        START = 'start', 'Boshida'
+        END   = 'end',   'Oxirida'
+
+    pay_timing = models.CharField(max_length=10, choices=PayTiming.choices, default=PayTiming.START)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
 
     class Meta:

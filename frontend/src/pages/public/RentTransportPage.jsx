@@ -25,7 +25,72 @@ function getImage(unit, i) {
   return (unit.unit_type === 'bike' ? BIKE_IMAGES : SCOOTER_IMAGES)[i % 5]
 }
 
-function UnitCard({ unit, i, bookLabel, unavailableLabel, sumPerDay }) {
+const SCOOTER_PLANS = [
+  {
+    label: '1 ta akkumulyator',
+    price: '350 000',
+    period: '7 kun',
+    icon: '🔋',
+    highlight: false,
+  },
+  {
+    label: '2 ta akkumulyator',
+    price: '450 000',
+    period: '7 kun',
+    icon: '🔋🔋',
+    highlight: true,
+  },
+]
+
+const BIKE_PLANS = [
+  { label: 'Kunlik',   price: '20 000',  period: '1 kun',  icon: '☀️',  highlight: false },
+  { label: 'Haftalik', price: '100 000', period: '7 kun',  icon: '📅',  highlight: true  },
+  { label: 'Oylik',    price: '400 000', period: '30 kun', icon: '🗓️', highlight: false },
+]
+
+function PricingBanner({ type }) {
+  const plans = type === 'scooter' ? SCOOTER_PLANS : BIKE_PLANS
+  return (
+    <div className="mb-8 rounded-2xl border border-gold/20 bg-surface p-4 sm:p-6">
+      <div className="mb-4 flex items-center gap-2">
+        <span className="text-base">{type === 'scooter' ? '🛴' : '🚲'}</span>
+        <h2 className="text-sm font-black uppercase tracking-widest text-gold">
+          {type === 'scooter' ? 'Skuter narxlari' : 'Velosiped narxlari'}
+        </h2>
+        {type === 'bike' && (
+          <span className="ml-auto rounded-full border border-gold/30 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-gold">
+            Razmer 26 / 29
+          </span>
+        )}
+      </div>
+      <div className={['grid gap-3', plans.length === 2 ? 'grid-cols-2' : 'grid-cols-3'].join(' ')}>
+        {plans.map((plan) => (
+          <div
+            key={plan.label}
+            className={[
+              'relative rounded-xl border p-3 text-center sm:p-4 transition-colors',
+              plan.highlight
+                ? 'border-gold bg-gold/8 ring-1 ring-gold/30'
+                : 'border-border bg-bg',
+            ].join(' ')}
+          >
+            {plan.highlight && (
+              <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 rounded-full bg-gold px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-black">
+                Mashhur
+              </span>
+            )}
+            <div className="mb-1 text-xl">{plan.icon}</div>
+            <p className="mb-0.5 text-[11px] font-medium text-text-muted">{plan.label}</p>
+            <p className="text-base font-black text-gold sm:text-lg">{plan.price}</p>
+            <p className="text-[10px] text-text-muted">so'm / {plan.period}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function UnitCard({ unit, i, bookLabel, unavailableLabel }) {
   const isAvailable = unit.status === 'available'
   const statusClass = unit.status === 'available' ? 'text-emerald-400'
     : unit.status === 'rented' ? 'text-red-400' : 'text-amber-400'
@@ -49,11 +114,12 @@ function UnitCard({ unit, i, bookLabel, unavailableLabel, sumPerDay }) {
             {isAvailable ? bookLabel : unavailableLabel}
           </span>
         </div>
-        <p className="mb-4 text-lg font-black text-gold">
-          {Number(unit.price_per_day).toLocaleString('uz-UZ')}{' '}
-          <span className="text-xs font-medium text-text-muted">{sumPerDay}</span>
-        </p>
-        <Link to="/become-worker">
+        <Link
+          to={isAvailable
+            ? `/become-worker?unit=${unit.id}&name=${encodeURIComponent(unit.model_name)}&type=${unit.unit_type}`
+            : '#'}
+          className="mb-4 block"
+        >
           <Button variant={isAvailable ? 'primary' : 'outline'} fullWidth disabled={!isAvailable}>
             {isAvailable ? bookLabel : unavailableLabel}
           </Button>
@@ -108,6 +174,8 @@ export default function RentTransportPage() {
         ))}
       </div>
 
+      <PricingBanner type={activeType} />
+
       {isLoading && <p className="text-text-muted">{t('common.loading')}</p>}
       {error && <p className="text-red-400">{error}</p>}
 
@@ -120,7 +188,6 @@ export default function RentTransportPage() {
               i={i}
               bookLabel={t('rent.book')}
               unavailableLabel={t('rent.unavailable')}
-              sumPerDay={t('common.sum_per_day')}
             />
           ))}
           {displayed.length === 0 && (

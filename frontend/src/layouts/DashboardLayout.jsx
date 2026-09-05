@@ -16,6 +16,8 @@ import { useAuthStore } from '../store/authStore.js'
 const ROOT_PATHS = [
   '/admin/dashboard',
   '/admin/workers',
+  '/admin/transports',
+  '/admin/applications',
   '/admin/map',
   '/admin/payment-receipts',
   '/worker/dashboard',

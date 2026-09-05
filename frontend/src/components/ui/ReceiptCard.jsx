@@ -1,6 +1,30 @@
 import Button from './Button.jsx'
 import { CheckIcon, XIcon } from './icons.jsx'
 
+const AI_CONFIG = {
+  real:    { icon: '🟢', label: 'Haqiqiy chek',   cls: 'text-emerald-400 bg-emerald-400/8 border-emerald-400/20' },
+  fake:    { icon: '🔴', label: 'Shubhali chek',  cls: 'text-red-400    bg-red-400/8    border-red-400/20'    },
+  unclear: { icon: '🟡', label: 'Aniqlanmadi',    cls: 'text-amber-400  bg-amber-400/8  border-amber-400/20'  },
+}
+
+function AiBadge({ verdict, extractedAmount }) {
+  const cfg = AI_CONFIG[verdict]
+  if (!cfg) return null
+  return (
+    <div className={`mb-3 flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-xs ${cfg.cls}`}>
+      <span className="flex items-center gap-1.5 font-medium">
+        <span>{cfg.icon}</span>
+        <span>AI: {cfg.label}</span>
+      </span>
+      {extractedAmount != null && (
+        <span className="font-semibold">
+          {extractedAmount.toLocaleString('uz-UZ')} so'm
+        </span>
+      )}
+    </div>
+  )
+}
+
 export default function ReceiptCard({ receipt, onApprove, onReject, isProcessing = false }) {
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-surface">
@@ -18,6 +42,8 @@ export default function ReceiptCard({ receipt, onApprove, onReject, isProcessing
             {receipt.amount.toLocaleString('uz-UZ')} so'm
           </p>
         </div>
+
+        <AiBadge verdict={receipt.aiVerdict} extractedAmount={receipt.aiExtractedAmount} />
 
         <div className="flex gap-2">
           <Button

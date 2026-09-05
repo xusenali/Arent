@@ -8,6 +8,8 @@ import {
   ReceiptIcon,
   BookIcon,
   LogoutIcon,
+  ScooterIcon,
+  FileIcon,
 } from '../ui/icons.jsx'
 import { useAuthStore } from '../../store/authStore.js'
 
@@ -20,7 +22,11 @@ export default function Sidebar({ role }) {
   const ADMIN_LINKS = [
     { to: '/admin/dashboard', label: t('sidebar.dashboard'), Icon: GridIcon },
     { to: '/admin/workers', label: t('sidebar.workers'), Icon: UsersIcon },
-    { to: '/admin/map', label: t('sidebar.map'), Icon: MapPinIcon },
+    { to: '/admin/transports',   label: 'Transportlar', Icon: ScooterIcon },
+    { to: '/admin/applications', label: 'Arizalar',     Icon: FileIcon },
+    ...(import.meta.env.VITE_ENABLE_MAP === 'true'
+      ? [{ to: '/admin/map', label: t('sidebar.map'), Icon: MapPinIcon }]
+      : []),
     { to: '/admin/payment-receipts', label: t('sidebar.receipts'), Icon: ReceiptIcon },
   ]
 

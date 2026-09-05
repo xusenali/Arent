@@ -39,6 +39,16 @@ class PaymentReceipt(UUIDModel):
     )
     reviewed_at = models.DateTimeField(null=True, blank=True)
 
+    # Google Vision AI tahlili
+    class AiVerdict(models.TextChoices):
+        REAL    = 'real',    'Haqiqiy chek'
+        FAKE    = 'fake',    'Shubhali'
+        UNCLEAR = 'unclear', 'Aniqlanmadi'
+
+    ai_verdict           = models.CharField(max_length=10, choices=AiVerdict.choices, null=True, blank=True)
+    ai_extracted_amount  = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
+    ai_raw_text          = models.TextField(null=True, blank=True)
+
     class Meta:
         db_table = 'payment_receipts'
         ordering = ['-uploaded_at']
