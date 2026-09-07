@@ -2,6 +2,7 @@ from django.db.models import Sum
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import generics, status
+from rest_framework.parsers import MultiPartParser
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
@@ -153,7 +154,7 @@ class WorkerDocumentUploadView(APIView):
     """POST /api/admin/workers/:id/documents — id_card yoki agreement_video yuklash."""
 
     permission_classes = [IsSuperAdmin]
-    parser_classes = [__import__('rest_framework.parsers', fromlist=['MultiPartParser']).MultiPartParser]
+    parser_classes = [MultiPartParser]
 
     def post(self, request, id):
         worker = get_object_or_404(User, id=id, role=User.Role.WORKER)

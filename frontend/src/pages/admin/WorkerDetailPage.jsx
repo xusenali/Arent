@@ -268,6 +268,7 @@ export default function WorkerDetailPage() {
   const [docUploading, setDocUploading] = useState({
     id_card_front: false, id_card_back: false, agreement_video: false,
   })
+  const [docError,     setDocError]     = useState(null)
   const [receiptModal, setReceiptModal] = useState(null) // { receipts, amount }
   const [showEndModal, setShowEndModal] = useState(false)
   const [isEnding,    setIsEnding]     = useState(false)
@@ -303,13 +304,14 @@ export default function WorkerDetailPage() {
 
   async function handleDocUpload(type, file) {
     if (!file) return
+    setDocError(null)
     setDocUploading((p) => ({ ...p, [type]: true }))
     try {
       const fd = new FormData()
       fd.append(type, file)
       setWorker(await uploadWorkerDocument(id, fd))
     } catch (err) {
-      setError(err.message)
+      setDocError(err.message)
     } finally {
       setDocUploading((p) => ({ ...p, [type]: false }))
     }
@@ -454,6 +456,7 @@ export default function WorkerDetailPage() {
       {/* Hujjatlar */}
       <section className="mb-4 rounded-xl border border-border bg-surface p-4 sm:mb-6 sm:p-6">
         <h2 className="mb-4 font-bold text-text">Hujjatlar</h2>
+        {docError && <p className="mb-3 text-sm text-red-400">{docError}</p>}
         <div className="grid gap-4 sm:grid-cols-3">
           {[
             { field: 'id_card_front',  label: 'ID Karta — Old tomoni',  accept: 'image/*', isImage: true  },
