@@ -15,6 +15,7 @@ import {
   uploadWorkerDocument,
   deleteWorkerDocument,
   adminEndRental,
+  recordCashPayment,
 } from '../../api/adminApi.js'
 import { formatDate } from '../../utils/date.js'
 
@@ -269,10 +270,14 @@ export default function WorkerDetailPage() {
     id_card_front: false, id_card_back: false, agreement_video: false,
   })
   const [docError,     setDocError]     = useState(null)
-  const [receiptModal, setReceiptModal] = useState(null) // { receipts, amount }
-  const [showEndModal, setShowEndModal] = useState(false)
-  const [isEnding,    setIsEnding]     = useState(false)
-  const [endError,    setEndError]     = useState(null)
+  const [receiptModal,  setReceiptModal]  = useState(null) // { receipts, amount }
+  const [showEndModal,  setShowEndModal]  = useState(false)
+  const [isEnding,      setIsEnding]      = useState(false)
+  const [endError,      setEndError]      = useState(null)
+  const [showCashModal, setShowCashModal] = useState(false)
+  const [cashAmount,    setCashAmount]    = useState('')
+  const [isCashing,     setIsCashing]     = useState(false)
+  const [cashError,     setCashError]     = useState(null)
 
   useEffect(() => {
     Promise.all([
@@ -333,6 +338,30 @@ export default function WorkerDetailPage() {
       setEndError(err.message)
     } finally {
       setIsEnding(false)
+    }
+  }
+
+  async function handleCashPayment() {
+    const amount = parseInt(cashAmount.replace(/\s/g, ''), 10)
+    if (!amount || amount <= 0) { setCashError("Summani kiriting"); return }
+    if (!rental?.id) { setCashError("Faol ijara topilmadi"); return }
+    setIsCashing(true)
+    setCashError(null)
+    try {
+      await recordCashPayment(rental.id, amount)
+      // Payments va rentalga yangilash
+      const [newPayments, newRental] = await Promise.all([
+        fetchWorkerPayments(id),
+        fetchWorkerRental(id),
+      ])
+      setPayments(newPayments)
+      setRental(newRental)
+      setShowCashModal(false)
+      setCashAmount('')
+    } catch (err) {
+      setCashError(err.message)
+    } finally {
+      setIsCashing(false)
     }
   }
 
@@ -520,28 +549,49 @@ export default function WorkerDetailPage() {
       )}
 
       {/* To'lovlar */}
-      <section className="mb-4 rounded-xl border border-border bg-surface sm:mb-6">
-        <div className="border-b border-border px-4 py-4 sm:px-5">
-          <h2 className="font-bold text-text">To'lovlar tarixi</h2>
-          {payments.length > 0 && (
-            <p className="mt-0.5 text-xs text-text-muted">{payments.length} ta yozuv</p>
-          )}
-        </div>
+      {(() => {
+        const paidPayments    = payments.filter((p) => p.paid_at != null)
+        const pendingPayment  = payments.find((p) => p.paid_at == null && !p.is_fine)
+        const hasPending      = !!pendingPayment && rental && rental.status !== 'completed'
+        return (
+          <section className="mb-4 rounded-xl border border-border bg-surface sm:mb-6">
+            <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-4 sm:px-5">
+              <div>
+                <h2 className="font-bold text-text">To'lovlar tarixi</h2>
+                {paidPayments.length > 0 && (
+                  <p className="mt-0.5 text-xs text-text-muted">{paidPayments.length} ta yozuv</p>
+                )}
+              </div>
+              {hasPending && (
+                <button
+                  type="button"
+                  onClick={() => { setCashAmount(''); setCashError(null); setShowCashModal(true) }}
+                  className="flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-400 transition hover:border-emerald-500/50 hover:bg-emerald-500/20 active:scale-95"
+                >
+                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                  </svg>
+                  Naqt oldim
+                </button>
+              )}
+            </div>
 
-        {payments.length === 0 ? (
-          <div className="px-4 py-10 text-center text-sm text-text-muted sm:px-5">
-            {t('worker_detail.no_payments')}
-          </div>
-        ) : (
-          payments.map((row) => (
-            <PaymentRow
-              key={row.id}
-              row={row}
-              onViewReceipt={(r) => setReceiptModal({ receipts: r.receipts, amount: r.amount })}
-            />
-          ))
-        )}
-      </section>
+            {paidPayments.length === 0 ? (
+              <div className="px-4 py-10 text-center text-sm text-text-muted sm:px-5">
+                {t('worker_detail.no_payments')}
+              </div>
+            ) : (
+              paidPayments.map((row) => (
+                <PaymentRow
+                  key={row.id}
+                  row={row}
+                  onViewReceipt={(r) => setReceiptModal({ receipts: r.receipts, amount: r.amount })}
+                />
+              ))
+            )}
+          </section>
+        )
+      })()}
 
       {/* Joylashuv */}
       <section className="rounded-xl border border-border bg-surface p-4 sm:p-6">
@@ -559,6 +609,56 @@ export default function WorkerDetailPage() {
           amount={receiptModal.amount}
           onClose={() => setReceiptModal(null)}
         />
+      )}
+
+      {/* Naqt to'lov modal */}
+      {showCashModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4"
+          onClick={() => setShowCashModal(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl border border-border bg-surface p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="mb-1 text-base font-black text-text">Naqt to'lov</h3>
+            <p className="mb-4 text-sm text-text-muted">
+              Qabul qilingan naqt pul summasini kiriting.
+            </p>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-text-muted">
+              Summa (so'm)
+            </label>
+            <input
+              type="number"
+              min="1"
+              placeholder="Masalan: 350000"
+              value={cashAmount}
+              onChange={(e) => setCashAmount(e.target.value)}
+              className="mb-4 w-full rounded-xl border border-border bg-bg px-4 py-3 text-sm font-bold text-text placeholder:text-text-muted focus:border-gold/50 focus:outline-none"
+              autoFocus
+              onKeyDown={(e) => e.key === 'Enter' && handleCashPayment()}
+            />
+            {cashError && <p className="mb-3 text-sm text-red-400">{cashError}</p>}
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                fullWidth
+                onClick={() => setShowCashModal(false)}
+                disabled={isCashing}
+              >
+                Bekor qilish
+              </Button>
+              <Button
+                variant="primary"
+                fullWidth
+                onClick={handleCashPayment}
+                loading={isCashing}
+              >
+                Tasdiqlash
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Ijarani yakunlash modal */}
