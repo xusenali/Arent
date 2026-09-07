@@ -19,11 +19,12 @@ def send_otp_message(chat_id: str, code: str) -> bool:
         f'Kod 5 daqiqa amal qiladi. Hech kimga bermang!'
     )
 
-    if not settings.TELEGRAM_BOT_TOKEN:
-        logger.warning('TELEGRAM_BOT_TOKEN sozlanmagan. OTP (dev rejimi): chat_id=%s code=%s', chat_id, code)
+    token = settings.TELEGRAM_OTP_BOT_TOKEN or settings.TELEGRAM_BOT_TOKEN
+    if not token:
+        logger.warning('TELEGRAM_OTP_BOT_TOKEN sozlanmagan. OTP (dev rejimi): chat_id=%s code=%s', chat_id, code)
         return True
 
-    url = TELEGRAM_API_URL.format(token=settings.TELEGRAM_BOT_TOKEN)
+    url = TELEGRAM_API_URL.format(token=token)
     try:
         response = requests.post(
             url,

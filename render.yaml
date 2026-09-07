@@ -16,6 +16,8 @@ services:
         value: ${SECRET_KEY}
       - key: TELEGRAM_BOT_TOKEN
         value: ${TELEGRAM_BOT_TOKEN}
+      - key: TELEGRAM_OTP_BOT_TOKEN
+        value: ${TELEGRAM_OTP_BOT_TOKEN}
       - key: TELEGRAM_BOT_USERNAME
         value: ${TELEGRAM_BOT_USERNAME}
       - key: ALLOWED_HOSTS

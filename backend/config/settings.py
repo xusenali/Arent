@@ -194,4 +194,6 @@ DAILY_FINE_AMOUNT = 70000  # so'm — README 7-bo'lim: har o'tgan kun uchun jari
 
 TELEGRAM_BOT_TOKEN = config('TELEGRAM_BOT_TOKEN', default='')
 TELEGRAM_BOT_USERNAME = config('TELEGRAM_BOT_USERNAME', default='')
+# OTP uchun alohida bot (reset-password boti). Agar ko'rsatilmasa — asosiy bot ishlatiladi.
+TELEGRAM_OTP_BOT_TOKEN = config('TELEGRAM_OTP_BOT_TOKEN', default='') or TELEGRAM_BOT_TOKEN
 OTP_TTL_SECONDS = 5 * 60  # 5 daqiqa, README 4-bo'lim
