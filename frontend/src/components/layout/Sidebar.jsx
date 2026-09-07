@@ -9,6 +9,7 @@ import {
   BookIcon,
   LogoutIcon,
   ScooterIcon,
+  ArchiveIcon,
 } from '../ui/icons.jsx'
 import { useAuthStore } from '../../store/authStore.js'
 
@@ -24,6 +25,7 @@ export default function Sidebar({ role }) {
     { to: '/admin/transports', label: 'Transportlar', Icon: ScooterIcon },
     { to: '/admin/map', label: t('sidebar.map'), Icon: MapPinIcon, soon: true },
     { to: '/admin/payment-receipts', label: t('sidebar.receipts'), Icon: ReceiptIcon },
+    { to: '/admin/archive', label: 'Arxiv', Icon: ArchiveIcon },
   ]
 
   const WORKER_LINKS = [

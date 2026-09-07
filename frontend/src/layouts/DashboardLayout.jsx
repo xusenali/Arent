@@ -10,6 +10,7 @@ import {
   BookIcon,
   LogoutIcon,
   ScooterIcon,
+  ArchiveIcon,
 } from '../components/ui/icons.jsx'
 import { useAuthStore } from '../store/authStore.js'
 
@@ -21,6 +22,7 @@ const ROOT_PATHS = [
   '/admin/applications',
   '/admin/map',
   '/admin/payment-receipts',
+  '/admin/archive',
   '/worker/dashboard',
   '/worker/rules',
 ]
@@ -67,6 +69,7 @@ function BottomNav({ role }) {
     { to: '/admin/workers', label: t('sidebar.workers'), Icon: UsersIcon },
     { to: '/admin/transports', label: 'Transport', Icon: ScooterIcon },
     { to: '/admin/payment-receipts', label: t('sidebar.receipts_short'), Icon: ReceiptIcon },
+    { to: '/admin/archive', label: 'Arxiv', Icon: ArchiveIcon },
   ]
   const workerLinks = [
     { to: '/worker/dashboard', label: t('sidebar.dashboard'), Icon: GridIcon },

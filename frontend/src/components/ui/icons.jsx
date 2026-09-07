@@ -131,6 +131,16 @@ export function XIcon(props) {
   )
 }
 
+export function ArchiveIcon(props) {
+  return (
+    <Icon {...props}>
+      <path d="M3 6h18v2a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6Z" />
+      <path d="M5 9v9a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9" />
+      <path d="M10 13h4" />
+    </Icon>
+  )
+}
+
 export function ClockIcon(props) {
   return (
     <Icon {...props}>

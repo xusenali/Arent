@@ -4,7 +4,9 @@ import StatusBadge from '../../components/ui/StatusBadge.jsx'
 import FileUploader from '../../components/ui/FileUploader.jsx'
 import Button from '../../components/ui/Button.jsx'
 import { ClockIcon } from '../../components/ui/icons.jsx'
-import { fetchWorkerDashboard, uploadPaymentReceipt } from '../../api/workerApi.js'
+import { fetchWorkerDashboard, uploadPaymentReceipt, endRental } from '../../api/workerApi.js'
+import { useAuthStore } from '../../store/authStore.js'
+import { useNavigate } from 'react-router-dom'
 import { formatDate } from '../../utils/date.js'
 
 const STATUS_TO_BADGE = { active: 'active', overdue: 'overdue', completed: 'completed' }
@@ -76,6 +78,8 @@ const TG_BOT = import.meta.env.VITE_TELEGRAM_BOT_USERNAME
 
 export default function WorkerDashboardPage() {
   const { t } = useTranslation()
+  const logout = useAuthStore((s) => s.logout)
+  const navigate = useNavigate()
   const [rental, setRental]               = useState(undefined)
   const [tgConnected, setTgConnected]     = useState(true)
   const [loadError, setLoadError]         = useState(null)
@@ -83,6 +87,9 @@ export default function WorkerDashboardPage() {
   const [isUploading, setIsUploading]     = useState(false)
   const [uploadError, setUploadError]     = useState(null)
   const [ended, setEnded]                 = useState(false)
+  const [showEndModal, setShowEndModal]   = useState(false)
+  const [isEnding, setIsEnding]           = useState(false)
+  const [endError, setEndError]           = useState(null)
 
   useEffect(() => {
     fetchWorkerDashboard()
@@ -105,6 +112,19 @@ export default function WorkerDashboardPage() {
       setUploadError(err.message)
     } finally {
       setIsUploading(false)
+    }
+  }
+
+  async function handleEndRental() {
+    setIsEnding(true)
+    setEndError(null)
+    try {
+      await endRental()
+      logout()
+      navigate('/login', { replace: true })
+    } catch (err) {
+      setEndError(err.message)
+      setIsEnding(false)
     }
   }
 
@@ -221,6 +241,20 @@ export default function WorkerDashboardPage() {
       {/* Payment timing info */}
       <PaymentTimingCard rental={rental} t={t} />
 
+      {/* Ijarani yakunlash */}
+      <div className="mb-4 rounded-xl border border-red-500/20 bg-surface p-4 sm:p-5">
+        <h2 className="mb-1 text-sm font-bold text-text">Ijarani yakunlash</h2>
+        <p className="mb-3 text-xs text-text-muted">Transport qaytarilganda ijarani yakunlang. Siz tizimdan chiqarilasiz.</p>
+        {endError && <p className="mb-2 text-xs text-red-400">{endError}</p>}
+        <button
+          type="button"
+          onClick={() => setShowEndModal(true)}
+          className="w-full rounded-lg border border-red-500/30 bg-red-500/10 py-2 text-sm font-semibold text-red-400 transition hover:border-red-500/60 hover:bg-red-500/20"
+        >
+          Ijarani yakunlash
+        </button>
+      </div>
+
       {/* Receipt upload — faqat pending to'lov bo'lsa */}
       {(canUpload || receiptPending) && (
         <div className="mb-4 rounded-xl border border-border bg-surface p-4 sm:p-6">
@@ -250,6 +284,19 @@ export default function WorkerDashboardPage() {
         </div>
       )}
 
+      {showEndModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4" onClick={() => setShowEndModal(false)}>
+          <div className="w-full max-w-sm rounded-2xl border border-border bg-surface p-6" onClick={(e) => e.stopPropagation()}>
+            <h3 className="mb-2 text-base font-black text-text">Ijarani yakunlash</h3>
+            <p className="mb-5 text-sm text-text-muted">Transport qaytarilganini tasdiqlaysizmi? Siz tizimdan chiqarilasiz.</p>
+            {endError && <p className="mb-3 text-sm text-red-400">{endError}</p>}
+            <div className="flex gap-3">
+              <Button variant="outline" fullWidth onClick={() => setShowEndModal(false)} disabled={isEnding}>Bekor qilish</Button>
+              <Button variant="primary" fullWidth onClick={handleEndRental} loading={isEnding}>Tasdiqlash</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

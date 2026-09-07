@@ -8,6 +8,7 @@ from .views import (
     RequestPasswordResetView,
     VerifyOtpView,
     WorkerApproveView,
+    WorkerArchiveListView,
     WorkerDetailView,
     WorkerDocumentUploadView,
     WorkerListCreateView,
@@ -22,6 +23,7 @@ urlpatterns = [
     path('api/auth/reset-password/confirm', ConfirmPasswordResetView.as_view(), name='auth-reset-confirm'),
 
     path('api/admin/dashboard/stats', AdminDashboardStatsView.as_view(), name='admin-dashboard-stats'),
+    path('api/admin/workers/archive', WorkerArchiveListView.as_view(), name='admin-worker-archive'),
     path('api/admin/workers', WorkerListCreateView.as_view(), name='admin-worker-list'),
     path('api/admin/workers/<uuid:id>', WorkerDetailView.as_view(), name='admin-worker-detail'),
     path('api/admin/workers/<uuid:id>/approve', WorkerApproveView.as_view(), name='admin-worker-approve'),

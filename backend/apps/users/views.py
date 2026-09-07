@@ -138,6 +138,31 @@ class WorkerDetailView(generics.RetrieveUpdateDestroyAPIView):
         return WorkerUpdateSerializer if self.request.method == 'PATCH' else UserSerializer
 
 
+class WorkerArchiveListView(generics.ListAPIView):
+    """GET /api/admin/workers/archive — ijarasi yakunlangan ishchilar."""
+    permission_classes = [IsSuperAdmin]
+    pagination_class = None
+    serializer_class = UserSerializer
+
+    def get_queryset(self):
+        from apps.rentals.models import Rental
+        completed_ids = (
+            Rental.objects.filter(status=Rental.Status.COMPLETED)
+            .values_list('worker_id', flat=True)
+            .distinct()
+        )
+        active_ids = (
+            Rental.objects.exclude(status=Rental.Status.COMPLETED)
+            .values_list('worker_id', flat=True)
+            .distinct()
+        )
+        return (
+            User.objects.filter(role=User.Role.WORKER, id__in=completed_ids)
+            .exclude(id__in=active_ids)
+            .order_by('-id')
+        )
+
+
 class WorkerApproveView(APIView):
     """POST /api/admin/workers/:id/approve"""
 
