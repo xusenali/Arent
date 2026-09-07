@@ -276,6 +276,7 @@ export default function WorkerDetailPage() {
   const [endError,      setEndError]      = useState(null)
   const [showCashModal, setShowCashModal] = useState(false)
   const [cashAmount,    setCashAmount]    = useState('')
+  const [cashDays,      setCashDays]      = useState('')
   const [isCashing,     setIsCashing]     = useState(false)
   const [cashError,     setCashError]     = useState(null)
 
@@ -343,13 +344,16 @@ export default function WorkerDetailPage() {
 
   async function handleCashPayment() {
     const amount = parseInt(cashAmount.replace(/\s/g, ''), 10)
-    if (!amount || amount <= 0) { setCashError("Summani kiriting"); return }
-    if (!rental?.id) { setCashError("Faol ijara topilmadi"); return }
+    if (!amount || amount <= 0) { setCashError('Summani kiriting'); return }
+    if (!rental?.id) { setCashError('Faol ijara topilmadi'); return }
+
+    const days = cashDays ? parseInt(cashDays, 10) : null
+    if (cashDays && (!days || days <= 0)) { setCashError('Kunlar sonini to\'g\'ri kiriting'); return }
+
     setIsCashing(true)
     setCashError(null)
     try {
-      await recordCashPayment(rental.id, amount)
-      // Payments va rentalga yangilash
+      await recordCashPayment(rental.id, amount, days)
       const [newPayments, newRental] = await Promise.all([
         fetchWorkerPayments(id),
         fetchWorkerRental(id),
@@ -358,6 +362,7 @@ export default function WorkerDetailPage() {
       setRental(newRental)
       setShowCashModal(false)
       setCashAmount('')
+      setCashDays('')
     } catch (err) {
       setCashError(err.message)
     } finally {
@@ -565,7 +570,7 @@ export default function WorkerDetailPage() {
               {hasPending && (
                 <button
                   type="button"
-                  onClick={() => { setCashAmount(''); setCashError(null); setShowCashModal(true) }}
+                  onClick={() => { setCashAmount(''); setCashDays(''); setCashError(null); setShowCashModal(true) }}
                   className="flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-400 transition hover:border-emerald-500/50 hover:bg-emerald-500/20 active:scale-95"
                 >
                   <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -612,54 +617,86 @@ export default function WorkerDetailPage() {
       )}
 
       {/* Naqt to'lov modal */}
-      {showCashModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4"
-          onClick={() => setShowCashModal(false)}
-        >
+      {showCashModal && (() => {
+        const pendingPayment = payments.find((p) => p.paid_at == null && !p.is_fine)
+        return (
           <div
-            className="w-full max-w-sm rounded-2xl border border-border bg-surface p-6"
-            onClick={(e) => e.stopPropagation()}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4"
+            onClick={() => setShowCashModal(false)}
           >
-            <h3 className="mb-1 text-base font-black text-text">Naqt to'lov</h3>
-            <p className="mb-4 text-sm text-text-muted">
-              Qabul qilingan naqt pul summasini kiriting.
-            </p>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-text-muted">
-              Summa (so'm)
-            </label>
-            <input
-              type="number"
-              min="1"
-              placeholder="Masalan: 350000"
-              value={cashAmount}
-              onChange={(e) => setCashAmount(e.target.value)}
-              className="mb-4 w-full rounded-xl border border-border bg-bg px-4 py-3 text-sm font-bold text-text placeholder:text-text-muted focus:border-gold/50 focus:outline-none"
-              autoFocus
-              onKeyDown={(e) => e.key === 'Enter' && handleCashPayment()}
-            />
-            {cashError && <p className="mb-3 text-sm text-red-400">{cashError}</p>}
-            <div className="flex gap-3">
-              <Button
-                variant="outline"
-                fullWidth
-                onClick={() => setShowCashModal(false)}
-                disabled={isCashing}
-              >
-                Bekor qilish
-              </Button>
-              <Button
-                variant="primary"
-                fullWidth
-                onClick={handleCashPayment}
-                loading={isCashing}
-              >
-                Tasdiqlash
-              </Button>
+            <div
+              className="w-full max-w-sm rounded-2xl border border-border bg-surface p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="mb-1 text-base font-black text-text">Naqt to'lov</h3>
+              <p className="mb-4 text-sm text-text-muted">
+                Qabul qilingan summani va necha kun qoplaganini kiriting.
+              </p>
+
+              {pendingPayment && (
+                <div className="mb-4 flex items-center justify-between rounded-lg border border-border bg-bg px-3 py-2.5">
+                  <span className="text-xs text-text-muted">Kutilgan summa</span>
+                  <span className="text-sm font-bold text-text">{fmt(pendingPayment.amount)}</span>
+                </div>
+              )}
+
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-text-muted">
+                Qabul qilingan summa (so'm)
+              </label>
+              <input
+                type="number"
+                min="1"
+                placeholder="Masalan: 200000"
+                value={cashAmount}
+                onChange={(e) => setCashAmount(e.target.value)}
+                className="mb-4 w-full rounded-xl border border-border bg-bg px-4 py-3 text-sm font-bold text-text placeholder:text-text-muted focus:border-gold/50 focus:outline-none"
+                autoFocus
+              />
+
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-text-muted">
+                Necha kun qoplaydi? <span className="font-normal normal-case text-text-muted/60">(ixtiyoriy)</span>
+              </label>
+              <input
+                type="number"
+                min="1"
+                placeholder="Masalan: 3"
+                value={cashDays}
+                onChange={(e) => setCashDays(e.target.value)}
+                className="mb-1 w-full rounded-xl border border-border bg-bg px-4 py-3 text-sm font-bold text-text placeholder:text-text-muted focus:border-gold/50 focus:outline-none"
+                onKeyDown={(e) => e.key === 'Enter' && handleCashPayment()}
+              />
+              {cashDays && (
+                <p className="mb-3 text-xs text-text-muted">
+                  Ijara muddati bugundan <span className="font-bold text-gold">{cashDays} kun</span> ga uzaytiriladi.
+                  Barcha jarimalar yopiladi.
+                </p>
+              )}
+              {!cashDays && <div className="mb-3" />}
+
+              {cashError && <p className="mb-3 text-sm text-red-400">{cashError}</p>}
+
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  fullWidth
+                  onClick={() => setShowCashModal(false)}
+                  disabled={isCashing}
+                >
+                  Bekor qilish
+                </Button>
+                <Button
+                  variant="primary"
+                  fullWidth
+                  onClick={handleCashPayment}
+                  loading={isCashing}
+                >
+                  Tasdiqlash
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* Ijarani yakunlash modal */}
       {showEndModal && (

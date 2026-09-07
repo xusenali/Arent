@@ -77,8 +77,10 @@ export function fetchUpcomingPayments() {
   return apiRequest('/api/admin/upcoming-payments').then((data) => data.results ?? data)
 }
 
-export function recordCashPayment(rentalId, amount) {
-  return apiRequest('/api/admin/cash-payment', { method: 'POST', body: { rental_id: rentalId, amount } })
+export function recordCashPayment(rentalId, amount, customDays = null) {
+  const body = { rental_id: rentalId, amount }
+  if (customDays) body.custom_days = customDays
+  return apiRequest('/api/admin/cash-payment', { method: 'POST', body })
 }
 
 export function fetchAdminUnits() {

@@ -206,16 +206,19 @@ class AdminUpcomingPaymentsView(generics.ListAPIView):
 
 
 class AdminCashPaymentView(APIView):
-    """POST /api/admin/cash-payment  { rental_id, amount }
+    """POST /api/admin/cash-payment  { rental_id, amount, custom_days? }
 
-    Naqd pul qabul qilindi — admin kiritgan miqdorni saqlaydi va
-    mavjud pending to'lovni to'langan deb belgilaydi.
+    Naqd pul qabul qilindi.
+    custom_days berilsa — due_date bugundan + custom_days ga uzaytiriladi,
+    barcha jarimalar yopiladi va ijara ACTIVE ga qaytadi.
+    Berilmasa — mavjud mantiq: OVERDUE + ochiq to'lov yo'q → ACTIVE.
     """
     permission_classes = [IsSuperAdmin]
 
     def post(self, request):
-        rental_id      = request.data.get('rental_id')
+        rental_id       = request.data.get('rental_id')
         received_amount = request.data.get('amount')
+        raw_days        = request.data.get('custom_days')
 
         if not rental_id:
             return Response({'detail': 'rental_id majburiy.'}, status=400)
@@ -229,6 +232,15 @@ class AdminCashPaymentView(APIView):
         except (ValueError, TypeError):
             return Response({'detail': 'amount musbat son bo\'lishi kerak.'}, status=400)
 
+        custom_days = None
+        if raw_days not in (None, '', 0, '0'):
+            try:
+                custom_days = int(raw_days)
+                if custom_days <= 0:
+                    raise ValueError
+            except (ValueError, TypeError):
+                return Response({'detail': 'custom_days musbat son bo\'lishi kerak.'}, status=400)
+
         rental = get_object_or_404(
             Rental.objects.select_related('unit', 'worker'),
             id=rental_id,
@@ -236,6 +248,7 @@ class AdminCashPaymentView(APIView):
         )
 
         with transaction.atomic():
+            # Pending davr to'lovini topamiz yoki yaratamiz
             payment = (
                 Payment.objects.filter(rental=rental, paid_at__isnull=True, is_fine=False)
                 .order_by('created_at')
@@ -249,15 +262,32 @@ class AdminCashPaymentView(APIView):
             payment.paid_at = timezone.now()
             payment.save(update_fields=['amount', 'paid_at'])
 
-            # Agar ijara OVERDUE bo'lsa va boshqa ochiq to'lov yo'q bo'lsa — ACTIVE ga qaytarish
-            has_open = Payment.objects.filter(rental=rental, paid_at__isnull=True).exclude(id=payment.id).exists()
-            if not has_open and rental.status == Rental.Status.OVERDUE:
-                rental.status = Rental.Status.ACTIVE
-                rental.save(update_fields=['status'])
+            if custom_days:
+                # Admin: "bu to'lov X kunni qoplaydi"
+                # due_date = bugundan + custom_days, barcha jarimalar yopiladi
+                today = timezone.localdate()
+                rental.due_date = today + datetime.timedelta(days=custom_days)
+                rental.status   = Rental.Status.ACTIVE
+                rental.save(update_fields=['due_date', 'status'])
+
+                Payment.objects.filter(
+                    rental=rental, is_fine=True, paid_at__isnull=True
+                ).update(paid_at=timezone.now())
+            else:
+                # Standart: ochiq to'lov qolmasa OVERDUE → ACTIVE
+                has_open = (
+                    Payment.objects.filter(rental=rental, paid_at__isnull=True)
+                    .exclude(id=payment.id)
+                    .exists()
+                )
+                if not has_open and rental.status == Rental.Status.OVERDUE:
+                    rental.status = Rental.Status.ACTIVE
+                    rental.save(update_fields=['status'])
 
         return Response({
             'detail': "Naqd to'lov qabul qilindi.",
-            'payment_id': str(payment.id),
-            'amount': str(payment.amount),
-            'worker': rental.worker.full_name,
+            'payment_id':  str(payment.id),
+            'amount':      str(payment.amount),
+            'worker':      rental.worker.full_name,
+            'new_due_date': str(rental.due_date) if custom_days else None,
         })
