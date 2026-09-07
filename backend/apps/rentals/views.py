@@ -87,6 +87,37 @@ class AdminRentalMediaView(generics.ListCreateAPIView):
         serializer.save(rental=rental)
 
 
+class AdminEndRentalView(APIView):
+    """POST /api/admin/workers/:worker_id/rental/end — admin ijarani yakunlaydi."""
+
+    permission_classes = [IsSuperAdmin]
+
+    def post(self, request, worker_id):
+        with transaction.atomic():
+            rental = (
+                Rental.objects.select_related('unit')
+                .filter(worker_id=worker_id)
+                .exclude(status=Rental.Status.COMPLETED)
+                .order_by('-start_date')
+                .first()
+            )
+            if not rental:
+                return Response({'detail': 'Faol ijara topilmadi.'}, status=404)
+
+            from apps.payments.models import Payment
+
+            Payment.objects.filter(rental=rental, is_fine=True, paid_at__isnull=True).delete()
+
+            rental.status = Rental.Status.COMPLETED
+            rental.save(update_fields=['status'])
+
+            from apps.electro_units.models import ElectroUnit
+            rental.unit.status = ElectroUnit.Status.AVAILABLE
+            rental.unit.save(update_fields=['status'])
+
+        return Response({'detail': 'Ijara yakunlandi.'})
+
+
 class WorkerDashboardView(APIView):
     """GET /api/worker/dashboard"""
 

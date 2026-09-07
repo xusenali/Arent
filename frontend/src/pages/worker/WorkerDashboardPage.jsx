@@ -4,7 +4,7 @@ import StatusBadge from '../../components/ui/StatusBadge.jsx'
 import FileUploader from '../../components/ui/FileUploader.jsx'
 import Button from '../../components/ui/Button.jsx'
 import { ClockIcon } from '../../components/ui/icons.jsx'
-import { fetchWorkerDashboard, uploadPaymentReceipt, endRental } from '../../api/workerApi.js'
+import { fetchWorkerDashboard, uploadPaymentReceipt } from '../../api/workerApi.js'
 import { formatDate } from '../../utils/date.js'
 
 const STATUS_TO_BADGE = { active: 'active', overdue: 'overdue', completed: 'completed' }
@@ -71,51 +71,6 @@ function PaymentTimingCard({ rental, t }) {
   )
 }
 
-// ─── End rental confirm modal ─────────────────────────────────────────────────
-function EndRentalModal({ rental, onConfirm, onCancel, isLoading, t }) {
-  const hasPay = rental.has_pending_payment && rental.prorated_amount > 0
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4"
-      onClick={onCancel}
-    >
-      <div
-        className="w-full max-w-sm rounded-2xl border border-border bg-surface p-6"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3 className="mb-2 text-base font-black text-text">{t('worker_dashboard.end_rental_title')}</h3>
-        <p className="mb-4 text-sm text-text-muted">{t('worker_dashboard.end_rental_desc')}</p>
-
-        {hasPay ? (
-          <div className="mb-5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
-            <p className="text-sm font-bold text-amber-400">
-              {t('worker_dashboard.end_rental_prorated', {
-                days: rental.days_used,
-                amount: Number(rental.prorated_amount).toLocaleString('uz-UZ'),
-              })}
-            </p>
-          </div>
-        ) : (
-          <div className="mb-5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3">
-            <p className="text-sm font-bold text-emerald-400">
-              {t('worker_dashboard.end_rental_no_charge')}
-            </p>
-          </div>
-        )}
-
-        <div className="flex gap-3">
-          <Button variant="outline" fullWidth onClick={onCancel} disabled={isLoading}>
-            {t('worker_dashboard.end_rental_cancel')}
-          </Button>
-          <Button variant="primary" fullWidth onClick={onConfirm} loading={isLoading}>
-            {t('worker_dashboard.end_rental_confirm')}
-          </Button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
 const TG_BOT = import.meta.env.VITE_TELEGRAM_BOT_USERNAME
 
@@ -127,9 +82,6 @@ export default function WorkerDashboardPage() {
   const [receiptFile, setReceiptFile]     = useState(null)
   const [isUploading, setIsUploading]     = useState(false)
   const [uploadError, setUploadError]     = useState(null)
-  const [showEndModal, setShowEndModal]   = useState(false)
-  const [isEnding, setIsEnding]           = useState(false)
-  const [endError, setEndError]           = useState(null)
   const [ended, setEnded]                 = useState(false)
 
   useEffect(() => {
@@ -153,21 +105,6 @@ export default function WorkerDashboardPage() {
       setUploadError(err.message)
     } finally {
       setIsUploading(false)
-    }
-  }
-
-  async function handleEndRental() {
-    setIsEnding(true)
-    setEndError(null)
-    try {
-      await endRental()
-      setShowEndModal(false)
-      setEnded(true)
-      setRental(null)
-    } catch (err) {
-      setEndError(err.message)
-    } finally {
-      setIsEnding(false)
     }
   }
 
@@ -313,26 +250,6 @@ export default function WorkerDashboardPage() {
         </div>
       )}
 
-      {/* End rental */}
-      <div className="rounded-xl border border-border bg-surface p-4 sm:p-6">
-        <h2 className="mb-1 font-bold text-text">{t('worker_dashboard.end_rental_btn')}</h2>
-        <p className="mb-4 text-sm text-text-muted">{t('worker_dashboard.end_rental_desc')}</p>
-        {endError && <p className="mb-3 text-sm text-red-400">{endError}</p>}
-        <Button variant="outline" onClick={() => setShowEndModal(true)} fullWidth>
-          {t('worker_dashboard.end_rental_btn')}
-        </Button>
-      </div>
-
-      {/* Confirm modal */}
-      {showEndModal && (
-        <EndRentalModal
-          rental={rental}
-          onConfirm={handleEndRental}
-          onCancel={() => setShowEndModal(false)}
-          isLoading={isEnding}
-          t={t}
-        />
-      )}
     </div>
   )
 }

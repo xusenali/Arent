@@ -14,6 +14,7 @@ import {
   updateWorker,
   uploadWorkerDocument,
   deleteWorkerDocument,
+  adminEndRental,
 } from '../../api/adminApi.js'
 import { formatDate } from '../../utils/date.js'
 
@@ -268,6 +269,9 @@ export default function WorkerDetailPage() {
     id_card_front: false, id_card_back: false, agreement_video: false,
   })
   const [receiptModal, setReceiptModal] = useState(null) // { receipts, amount }
+  const [showEndModal, setShowEndModal] = useState(false)
+  const [isEnding,    setIsEnding]     = useState(false)
+  const [endError,    setEndError]     = useState(null)
 
   useEffect(() => {
     Promise.all([
@@ -314,6 +318,20 @@ export default function WorkerDetailPage() {
   async function handleDocDelete(type) {
     try { setWorker(await deleteWorkerDocument(id, type)) }
     catch (err) { setError(err.message) }
+  }
+
+  async function handleEndRental() {
+    setIsEnding(true)
+    setEndError(null)
+    try {
+      await adminEndRental(id)
+      setShowEndModal(false)
+      setRental(null)
+    } catch (err) {
+      setEndError(err.message)
+    } finally {
+      setIsEnding(false)
+    }
   }
 
   async function handleSave(e) {
@@ -417,7 +435,19 @@ export default function WorkerDetailPage() {
 
       {/* Transport va Ijara */}
       <section className="mb-4 rounded-xl border border-border bg-surface p-4 sm:mb-6 sm:p-6">
-        <h2 className="mb-4 font-bold text-text">Transport va Ijara</h2>
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 className="font-bold text-text">Transport va Ijara</h2>
+          {rental && rental.status !== 'completed' && (
+            <button
+              type="button"
+              onClick={() => setShowEndModal(true)}
+              className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-400 transition hover:border-red-500/60 hover:bg-red-500/20"
+            >
+              Ijarani yakunlash
+            </button>
+          )}
+        </div>
+        {endError && <p className="mb-3 text-sm text-red-400">{endError}</p>}
         <RentalCard rental={rental ?? null} />
       </section>
 
@@ -526,6 +556,27 @@ export default function WorkerDetailPage() {
           amount={receiptModal.amount}
           onClose={() => setReceiptModal(null)}
         />
+      )}
+
+      {/* Ijarani yakunlash modal */}
+      {showEndModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4" onClick={() => setShowEndModal(false)}>
+          <div className="w-full max-w-sm rounded-2xl border border-border bg-surface p-6" onClick={(e) => e.stopPropagation()}>
+            <h3 className="mb-2 text-base font-black text-text">Ijarani yakunlash</h3>
+            <p className="mb-5 text-sm text-text-muted">
+              Transport ijarasi yakunlanadi va transport bo'sh holatga o'tkaziladi. Davom etasizmi?
+            </p>
+            {endError && <p className="mb-3 text-sm text-red-400">{endError}</p>}
+            <div className="flex gap-3">
+              <Button variant="outline" fullWidth onClick={() => setShowEndModal(false)} disabled={isEnding}>
+                Bekor qilish
+              </Button>
+              <Button variant="primary" fullWidth onClick={handleEndRental} loading={isEnding}>
+                Yakunlash
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

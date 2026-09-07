@@ -37,6 +37,10 @@ export function fetchWorkerRentalMedia(id) {
   return apiRequest(`/api/admin/workers/${id}/rental-media`).then((data) => data.results ?? data)
 }
 
+export function adminEndRental(id) {
+  return apiRequest(`/api/admin/workers/${id}/rental/end`, { method: 'POST' })
+}
+
 export function uploadWorkerDocument(id, formData) {
   return apiRequest(`/api/admin/workers/${id}/documents`, { method: 'POST', body: formData })
 }
