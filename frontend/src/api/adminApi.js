@@ -21,10 +21,6 @@ export function deleteWorker(id) {
   return apiRequest(`/api/admin/workers/${id}`, { method: 'DELETE' })
 }
 
-export function approveWorker(id) {
-  return apiRequest(`/api/admin/workers/${id}/approve`, { method: 'POST' })
-}
-
 export function fetchWorkerPayments(id) {
   return apiRequest(`/api/admin/workers/${id}/payments`).then((data) => data.results ?? data)
 }

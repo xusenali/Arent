@@ -26,14 +26,13 @@ class Command(BaseCommand):
 
         with transaction.atomic():
             from apps.locations.models import WorkerLocation
-            from apps.payments.models import Payment, Receipt
+            from apps.payments.models import Payment, PaymentReceipt
             from apps.rentals.models import Rental
-            from apps.applications.models import WorkerApplication
             from apps.electro_units.models import ElectroUnit
             from apps.users.models import User
 
             # 1. Cheklar
-            r_count = Receipt.objects.all().delete()[0]
+            r_count = PaymentReceipt.objects.all().delete()[0]
             self.stdout.write(f'  Cheklar o\'chirildi: {r_count}')
 
             # 2. To'lovlar
@@ -48,15 +47,11 @@ class Command(BaseCommand):
             loc_count = WorkerLocation.objects.all().delete()[0]
             self.stdout.write(f'  Lokatsiyalar o\'chirildi: {loc_count}')
 
-            # 5. Arizalar
-            app_count = WorkerApplication.objects.all().delete()[0]
-            self.stdout.write(f'  Arizalar o\'chirildi: {app_count}')
-
-            # 6. Transportlar statusini 'available' ga qaytarish
+            # 5. Transportlar statusini 'available' ga qaytarish
             eu_count = ElectroUnit.objects.update(status=ElectroUnit.Status.AVAILABLE)
             self.stdout.write(f'  Transportlar "available" ga qaytarildi: {eu_count}')
 
-            # 7. Ishchilarni o'chirish (super_admin qoladi)
+            # 6. Ishchilarni o'chirish (super_admin qoladi)
             w_count = User.objects.filter(role=User.Role.WORKER).delete()[0]
             self.stdout.write(f'  Ishchilar o\'chirildi: {w_count}')
 

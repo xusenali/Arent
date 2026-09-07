@@ -97,18 +97,14 @@
     "empty": "Hozircha transportlar mavjud emas"
   },
   "become_worker": {
-    "badge": "Ariza",
+    "badge": "Ro'yxatdan o'tish",
     "title": "Ishchi bo'lish",
-    "desc": "Formani to'ldiring — arizangiz admin tomonidan ko'rib chiqiladi.",
+    "desc": "Formani to'ldiring — hisobingiz darhol ochiladi va kabinetga kirasiz.",
     "full_name": "Ism-familiya",
     "phone": "Telefon raqam",
-    "desired_model": "Xohlagan transport modeli (ixtiyoriy)",
-    "any_model": "Farqi yo'q",
-    "submit": "Ariza yuborish",
+    "submit": "Ishchi bo'lish",
     "full_name_error": "Ism-familiyani to'liq kiriting",
-    "phone_error": "Telefon raqamni to'liq kiriting",
-    "success_title": "Arizangiz qabul qilindi",
-    "success_desc": "Tez orada operatorlarimiz siz bilan bog'lanishadi. Ariza holatini admin tasdiqlagach shaxsiy kabinetingiz orqali kuzatishingiz mumkin bo'ladi."
+    "phone_error": "Telefon raqamni to'liq kiriting"
   },
   "rules": {
     "badge": "Qonun-qoida",
@@ -130,24 +126,18 @@
     "active_rentals": "Faol ijaralar",
     "monthly_revenue": "Joriy oy tushumi",
     "overdue": "Muddati o'tganlar",
-    "pending_receipts": "Kutilayotgan cheklar",
-    "pending_requests": "Kutilayotgan so'rovlar"
+    "pending_receipts": "Kutilayotgan cheklar"
   },
   "workers": {
     "title": "Ishchilar boshqaruvi",
     "subtitle": "Ro'yxatdan o'tish, tasdiqlash va boshqarish",
-    "tab_active": "Faol",
-    "tab_pending": "Kutilayotgan",
-    "tab_overdue": "Muddati o'tgan",
     "col_name": "Ism-familiya",
     "col_phone": "Telefon",
     "col_status": "Holat",
     "col_actions": "Amallar",
     "empty": "Bu bo'limda ishchilar yo'q",
     "delete_title": "Ishchini o'chirish",
-    "delete_desc": "ro'yxatdan butunlay o'chiriladi. Bu amalni ortga qaytarib bo'lmaydi.",
-    "approve_title": "Ro'yxatdan o'tishni tasdiqlash",
-    "approve_desc": "faol ishchi sifatida tasdiqlanadi."
+    "delete_desc": "ro'yxatdan butunlay o'chiriladi. Bu amalni ortga qaytarib bo'lmaydi."
   },
   "worker_detail": {
     "back": "Ishchilar ro'yxati",

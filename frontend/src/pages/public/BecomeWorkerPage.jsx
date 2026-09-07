@@ -1,13 +1,13 @@
 import { useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation as useT } from 'react-i18next'
 import Input from '../../components/ui/Input.jsx'
 import Button from '../../components/ui/Button.jsx'
-import { CheckIcon } from '../../components/ui/icons.jsx'
 import { formatPhone, isValidPhone } from '../../utils/formatPhone.js'
-import { submitWorkerApplication } from '../../api/applicationsApi.js'
+import { registerWorker } from '../../api/publicApi.js'
+import { useAuthStore } from '../../store/authStore.js'
 
-// ─── pricing constants (mirror of backend utils.py) ───────────────────────────
+// ─── narxlar (backend apps/payments/pricing.py bilan bir xil) ────────────────
 const SCOOTER_PRICES = { 1: 350_000, 2: 450_000 }
 const BIKE_PRICES    = { daily: 30_000, weekly: 100_000, monthly: 400_000 }
 const PERIOD_LABELS  = { daily: 'Kunlik', weekly: 'Haftalik', monthly: 'Oylik' }
@@ -123,6 +123,8 @@ function PayTimingControls({ payTiming, onPayTimingChange }) {
 export default function BecomeWorkerPage() {
   const { t } = useT()
   const [searchParams] = useSearchParams()
+  const navigate   = useNavigate()
+  const setSession = useAuthStore((state) => state.setSession)
 
   const unitId   = searchParams.get('unit')
   const unitName = searchParams.get('name')
@@ -138,7 +140,6 @@ export default function BecomeWorkerPage() {
   const [batteryCount, setBatteryCount] = useState(1)
   const [errors,       setErrors]       = useState({})
   const [isLoading,    setIsLoading]    = useState(false)
-  const [isSubmitted,  setIsSubmitted]  = useState(false)
   const [submitError,  setSubmitError]  = useState(null)
 
   const previewPrice = (() => {
@@ -164,34 +165,22 @@ export default function BecomeWorkerPage() {
     setIsLoading(true)
     setSubmitError(null)
     try {
-      await submitWorkerApplication({
+      // Ro'yxatdan o'tish darhol hisob ochadi va JWT qaytaradi —
+      // qo'shimcha login qilish shart emas.
+      setSession(await registerWorker({
         fullName,
         phone,
         password,
-        desiredUnitModel: unitType ?? null,
-        unitId:           unitId ?? null,
-        period_type:      isScooter ? 'weekly' : periodType,
-        pay_timing:       payTiming,
-        battery_count:    isScooter ? batteryCount : null,
-      })
-      setIsSubmitted(true)
+        unitId:       unitId ?? null,
+        periodType:   isScooter ? 'weekly' : periodType,
+        payTiming:    payTiming,
+        batteryCount: isScooter ? batteryCount : null,
+      }))
+      navigate('/worker/dashboard', { replace: true })
     } catch (err) {
       setSubmitError(err.message)
-    } finally {
       setIsLoading(false)
     }
-  }
-
-  if (isSubmitted) {
-    return (
-      <div className="mx-auto flex max-w-lg flex-col items-center px-4 py-16 text-center sm:px-6 sm:py-24">
-        <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-gold/10">
-          <CheckIcon className="h-7 w-7 text-gold" />
-        </div>
-        <h1 className="mb-3 text-2xl font-black text-text">{t('become_worker.success_title')}</h1>
-        <p className="text-sm text-text-muted sm:text-base">{t('become_worker.success_desc')}</p>
-      </div>
-    )
   }
 
   return (

@@ -54,20 +54,18 @@ export default function AdminDashboardPage() {
     { label: t('admin_dashboard.monthly_revenue'), value: `${Number(stats.monthly_revenue).toLocaleString('uz-UZ')} ${t('common.sum')}`, Icon: ReceiptIcon, to: '/admin/workers' },
     { label: t('admin_dashboard.overdue'), value: stats.overdue_count, Icon: ClockIcon, to: '/admin/workers' },
     { label: t('admin_dashboard.pending_receipts'), value: stats.pending_receipts_count, Icon: ReceiptIcon, to: '/admin/workers' },
-    { label: t('admin_dashboard.pending_requests'), value: stats.pending_worker_requests_count, Icon: UsersIcon, to: '/admin/workers' },
   ]
 
   // Donut chart ma'lumoti
   const workerPie = [
-    { name: t('workers.tab_active'), value: stats.worker_stats?.active ?? 0, color: EMERALD },
-    { name: t('workers.tab_pending'), value: stats.worker_stats?.pending ?? 0, color: AMBER },
+    { name: 'Faol',       value: stats.worker_stats?.active ?? 0,  color: EMERALD },
     { name: 'Bloklangan', value: stats.worker_stats?.blocked ?? 0, color: RED },
   ].filter((d) => d.value > 0)
 
   // Bar chart ma'lumoti
   const rentalBar = [
-    { name: t('workers.tab_active'), value: stats.rental_stats?.active ?? 0, fill: EMERALD },
-    { name: t('workers.tab_overdue'), value: stats.rental_stats?.overdue ?? 0, fill: RED },
+    { name: 'Faol',            value: stats.rental_stats?.active ?? 0,  fill: EMERALD },
+    { name: "Muddati o'tgan", value: stats.rental_stats?.overdue ?? 0, fill: RED },
     { name: 'Yakunlangan', value: stats.rental_stats?.completed ?? 0, fill: GOLD2 },
   ]
 

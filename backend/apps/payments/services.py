@@ -27,6 +27,7 @@ from django.db.models import Sum
 from django.utils import timezone
 
 from .models import Payment
+from .pricing import PERIOD_KEY_BY_DAYS, calc_amount
 
 # Kunlik jarima miqdori transport turiga qarab (so'm)
 DAILY_FINE_BY_TYPE = {
@@ -34,9 +35,6 @@ DAILY_FINE_BY_TYPE = {
     'bike':    30_000,
 }
 DEFAULT_DAILY_FINE = 30_000
-
-# Ijara davri (kun) -> applications.utils dagi tarif kaliti
-_PERIOD_KEY_BY_DAYS = {1: 'daily', 7: 'weekly', 30: 'monthly'}
 
 # Bir ijara bo'yicha jarima shuncha kundan ortiq o'smaydi.
 MAX_FINE_DAYS = 30
@@ -85,23 +83,9 @@ def daily_fine_amount(rental) -> int:
 
 
 def period_amount(rental) -> int:
-    """Ijara davrining asosiy narxi."""
-    from apps.applications.models import WorkerApplication
-    from apps.applications.utils import calc_amount
-
-    period_key = _PERIOD_KEY_BY_DAYS.get(rental.period_days, 'weekly')
-
-    battery_count = None
-    if rental.unit.unit_type == 'scooter':
-        battery_count = (
-            WorkerApplication.objects
-            .filter(unit_id=rental.unit_id, status=WorkerApplication.Status.APPROVED)
-            .order_by('-created_at')
-            .values_list('battery_count', flat=True)
-            .first()
-        ) or 1
-
-    return calc_amount(rental.unit, period_key, battery_count)
+    """Ijara davrining asosiy narxi — batareya soni ijaraning o'zida saqlanadi."""
+    period_key = PERIOD_KEY_BY_DAYS.get(rental.period_days, 'weekly')
+    return calc_amount(rental.unit, period_key, rental.battery_count)
 
 
 # ─── qarz holati ─────────────────────────────────────────────────────────────

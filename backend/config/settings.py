@@ -31,7 +31,6 @@ INSTALLED_APPS = [
     'apps.rentals',
     'apps.payments',
     'apps.locations',
-    'apps.applications',
     'apps.translations',
     'apps.telegram_bot',
 ]
@@ -160,6 +159,9 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_RATES': {
         'otp-request': '5/hour',
         'login': '10/minute',
+        # Ro'yxatdan o'tish OTP dan kengroq: mobil operatorlarda ko'p
+        # foydalanuvchi bitta IP orqasida bo'ladi, 5/hour ularni bloklab qo'yardi.
+        'register': '20/hour',
     },
 }
 

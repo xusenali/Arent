@@ -1,13 +1,13 @@
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 
+from .registration import WorkerRegisterView
 from .views import (
     AdminDashboardStatsView,
     ConfirmPasswordResetView,
     LoginView,
     RequestPasswordResetView,
     VerifyOtpView,
-    WorkerApproveView,
     WorkerArchiveListView,
     WorkerDetailView,
     WorkerDocumentUploadView,
@@ -16,6 +16,8 @@ from .views import (
 )
 
 urlpatterns = [
+    path('api/public/worker-register', WorkerRegisterView.as_view(), name='public-worker-register'),
+
     path('api/auth/login', LoginView.as_view(), name='auth-login'),
     path('api/auth/refresh-token', TokenRefreshView.as_view(), name='auth-refresh-token'),
     path('api/auth/reset-password/request', RequestPasswordResetView.as_view(), name='auth-reset-request'),
@@ -26,7 +28,6 @@ urlpatterns = [
     path('api/admin/workers/archive', WorkerArchiveListView.as_view(), name='admin-worker-archive'),
     path('api/admin/workers', WorkerListCreateView.as_view(), name='admin-worker-list'),
     path('api/admin/workers/<uuid:id>', WorkerDetailView.as_view(), name='admin-worker-detail'),
-    path('api/admin/workers/<uuid:id>/approve', WorkerApproveView.as_view(), name='admin-worker-approve'),
     path('api/admin/workers/<uuid:id>/documents', WorkerDocumentUploadView.as_view(), name='admin-worker-documents'),
     path('api/admin/locations', WorkerLocationsView.as_view(), name='admin-worker-locations'),
 ]

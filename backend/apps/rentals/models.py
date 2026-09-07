@@ -26,6 +26,15 @@ class Rental(UUIDModel):
         END   = 'end',   'Oxirida'
 
     pay_timing = models.CharField(max_length=10, choices=PayTiming.choices, default=PayTiming.START)
+
+    class BatteryCount(models.IntegerChoices):
+        ONE = 1, '1 ta batareya'
+        TWO = 2, '2 ta batareya'
+
+    # Faqat skuter uchun — narx batareya soniga bog'liq.
+    battery_count = models.PositiveSmallIntegerField(
+        choices=BatteryCount.choices, null=True, blank=True,
+    )
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
 
     class Meta:

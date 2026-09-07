@@ -99,12 +99,8 @@ class ConfirmPasswordResetView(APIView):
 
 class WorkerListCreateView(generics.ListCreateAPIView):
     """
-    GET  /api/admin/workers  ?status=active|pending|overdue
-    POST /api/admin/workers  — yangi ishchi (status=pending) yaratadi.
-
-    README §6 jadvalida yaratish endpointi alohida ko'rsatilmagan, ammo
-    "Kutilayotgan" tabini to'ldirish uchun zarur — mavjud CRUD to'plamini
-    to'ldiruvchi qo'shimcha sifatida qo'shildi.
+    GET  /api/admin/workers  ?status=active|blocked|overdue
+    POST /api/admin/workers  — admin qo'lda ishchi qo'shadi (darhol faol).
     """
 
     permission_classes = [IsSuperAdmin]
@@ -161,18 +157,6 @@ class WorkerArchiveListView(generics.ListAPIView):
             .exclude(id__in=active_ids)
             .order_by('-id')
         )
-
-
-class WorkerApproveView(APIView):
-    """POST /api/admin/workers/:id/approve"""
-
-    permission_classes = [IsSuperAdmin]
-
-    def post(self, request, id):
-        worker = get_object_or_404(User, id=id, role=User.Role.WORKER)
-        worker.status = User.Status.ACTIVE
-        worker.save(update_fields=['status'])
-        return Response(UserSerializer(worker).data)
 
 
 class WorkerDocumentUploadView(APIView):
@@ -309,8 +293,7 @@ class AdminDashboardStatsView(APIView):
 
         # Ishchi holatlari (donut chart)
         worker_stats = {
-            'active': User.objects.filter(role=User.Role.WORKER, status=User.Status.ACTIVE).count(),
-            'pending': User.objects.filter(role=User.Role.WORKER, status=User.Status.PENDING).count(),
+            'active':  User.objects.filter(role=User.Role.WORKER, status=User.Status.ACTIVE).count(),
             'blocked': User.objects.filter(role=User.Role.WORKER, status=User.Status.BLOCKED).count(),
         }
 
@@ -328,9 +311,6 @@ class AdminDashboardStatsView(APIView):
             'overdue_count': Rental.objects.filter(status=Rental.Status.OVERDUE).count(),
             'pending_receipts_count': PaymentReceipt.objects.filter(
                 status=PaymentReceipt.Status.PENDING
-            ).count(),
-            'pending_worker_requests_count': User.objects.filter(
-                role=User.Role.WORKER, status=User.Status.PENDING
             ).count(),
             'daily_revenue': daily_revenue,
             'worker_stats': worker_stats,

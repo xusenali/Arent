@@ -50,7 +50,7 @@ class WorkerCreateSerializer(serializers.ModelSerializer):
         password = validated_data.pop('password')
         return User.objects.create_user(
             role=User.Role.WORKER,
-            status=User.Status.PENDING,
+            status=User.Status.ACTIVE,
             password=password,
             **validated_data,
         )
