@@ -3,6 +3,13 @@ import Button from '../../components/ui/Button.jsx'
 import StatusBadge from '../../components/ui/StatusBadge.jsx'
 import { fetchAdminUnits, createAdminUnit, updateAdminUnit, deleteAdminUnit } from '../../api/adminApi.js'
 
+const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
+function mediaUrl(path) {
+  if (!path) return null
+  if (path.startsWith('http')) return path
+  return `${API_BASE}${path}`
+}
+
 const TYPE_LABEL = { scooter: '🛴 Skuter', bike: '🚲 Velosiped' }
 const STATUS_OPTS = [
   { value: 'available',   label: "Bo'sh" },
@@ -29,7 +36,7 @@ function UnitModal({ unit, onClose, onSaved }) {
     price_per_day: unit.price_per_day ?? '0',
   } : { ...EMPTY_FORM })
   const [imageFile, setImageFile] = useState(null)
-  const [preview, setPreview] = useState(unit?.image ?? null)
+  const [preview, setPreview] = useState(unit?.image ? mediaUrl(unit.image) : null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
   const fileRef = useRef()
@@ -288,7 +295,7 @@ export default function TransportsPage() {
             {/* Image */}
             <div className="aspect-[4/3] bg-bg">
               {unit.image
-                ? <img src={unit.image} alt={unit.model_name} className="h-full w-full object-cover" />
+                ? <img src={mediaUrl(unit.image)} alt={unit.model_name} className="h-full w-full object-cover" />
                 : <div className="flex h-full items-center justify-center text-4xl">
                     {unit.unit_type === 'scooter' ? '🛴' : '🚲'}
                   </div>}

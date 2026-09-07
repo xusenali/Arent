@@ -20,8 +20,16 @@ const BIKE_IMAGES = [
   'https://images.unsplash.com/photo-1507035895480-2b3156c31fc8?w=480&h=360&fit=crop&auto=format',
 ]
 
+const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
+
+function mediaUrl(path) {
+  if (!path) return null
+  if (path.startsWith('http')) return path
+  return `${API_BASE}${path}`
+}
+
 function getImage(unit, i) {
-  if (unit.image) return unit.image
+  if (unit.image) return mediaUrl(unit.image)
   return (unit.unit_type === 'bike' ? BIKE_IMAGES : SCOOTER_IMAGES)[i % 5]
 }
 
