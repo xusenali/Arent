@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Payment, PaymentReceipt
+from .models import Payment, PaymentCard, PaymentReceipt
 
 
 class ReceiptInlineSerializer(serializers.ModelSerializer):
@@ -55,3 +55,23 @@ class RejectReceiptSerializer(serializers.Serializer):
 
 class WorkerReceiptUploadSerializer(serializers.Serializer):
     receipt_image = serializers.ImageField()
+
+
+class PaymentCardSerializer(serializers.ModelSerializer):
+    """To'lov kartasi — admin kiritadi, ishchi ko'radi."""
+
+    updated_by_name = serializers.CharField(source='updated_by.full_name', read_only=True, default=None)
+    # Admin raqamni probel bilan kiritishi mumkin ("8600 1234 ..."), shuning uchun
+    # kirish uzunligi modeldagidan kengroq — probellar validate_number da tozalanadi.
+    number = serializers.CharField(max_length=32)
+
+    class Meta:
+        model = PaymentCard
+        fields = ['number', 'holder', 'bank', 'masked', 'updated_by_name', 'updated_at']
+        read_only_fields = ['masked', 'updated_by_name', 'updated_at']
+
+    def validate_number(self, value):
+        digits = ''.join(ch for ch in value if ch.isdigit())
+        if len(digits) != 16:
+            raise serializers.ValidationError("Karta raqami 16 xonadan iborat bo'lishi kerak.")
+        return digits

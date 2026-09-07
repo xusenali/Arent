@@ -18,11 +18,12 @@ from apps.rentals.models import Rental
 from apps.users.permissions import IsSuperAdmin, IsWorker
 
 from . import services
-from .models import Payment, PaymentReceipt
+from .models import Payment, PaymentCard, PaymentReceipt
 from .serializers import (
     AdminWorkerPaymentSerializer,
     CashPaymentSerializer,
     ConfirmPaymentSerializer,
+    PaymentCardSerializer,
     ReceiptInlineSerializer,
     RejectReceiptSerializer,
     WorkerReceiptUploadSerializer,
@@ -220,3 +221,31 @@ class WorkerReceiptUploadView(APIView):
             )
 
         return Response(ReceiptInlineSerializer(receipt).data, status=status.HTTP_201_CREATED)
+
+
+class AdminPaymentCardView(APIView):
+    """GET/PUT /api/admin/payment-card — ishchilar pul o'tkazadigan karta.
+
+    Yozuv yagona (singleton): PUT mavjudini yangilaydi yoki birinchisini yaratadi.
+    """
+
+    permission_classes = [IsSuperAdmin]
+
+    # Karta hali kiritilmaganda ham javob shakli bir xil bo'ladi —
+    # klient har safar maydonlar borligiga tayanadi.
+    EMPTY = {
+        'number': '', 'holder': '', 'bank': '', 'masked': '',
+        'updated_by_name': None, 'updated_at': None,
+    }
+
+    def get(self, request):
+        card = PaymentCard.load()
+        return Response(PaymentCardSerializer(card).data if card else self.EMPTY)
+
+    def put(self, request):
+        with transaction.atomic():
+            card = PaymentCard.objects.select_for_update().first()
+            serializer = PaymentCardSerializer(card, data=request.data, partial=card is not None)
+            serializer.is_valid(raise_exception=True)
+            card = serializer.save(updated_by=request.user)
+        return Response(PaymentCardSerializer(card).data)

@@ -6,6 +6,7 @@ import {
 } from 'recharts'
 import StatCard from '../../components/ui/StatCard.jsx'
 import { GridIcon, UsersIcon, ReceiptIcon, ClockIcon } from '../../components/ui/icons.jsx'
+import PaymentCardBox from '../../components/payments/PaymentCardBox.jsx'
 import { fetchDashboardStats } from '../../api/adminApi.js'
 
 const GOLD = '#d2c4b4'
@@ -88,6 +89,11 @@ export default function AdminDashboardPage() {
         {cards.map((card) => (
           <StatCard key={card.label} {...card} />
         ))}
+      </div>
+
+      {/* To'lov kartasi — mobilda sidebar ko'rinmagani uchun shu yerda */}
+      <div className="mb-6 md:hidden">
+        <PaymentCardBox />
       </div>
 
       {/* Charts grid */}

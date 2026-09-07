@@ -12,7 +12,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.payments import services as payment_services
-from apps.payments.models import Payment, PaymentReceipt
+from apps.payments.models import Payment, PaymentCard, PaymentReceipt
 from apps.users.models import User
 from apps.users.permissions import IsSuperAdmin, IsWorker
 
@@ -125,6 +125,14 @@ class AdminEndRentalView(APIView):
         return Response({'detail': 'Ijara yakunlandi.'})
 
 
+def _card_payload():
+    """Admin kiritgan to'lov kartasi (kiritilmagan bo'lsa None)."""
+    card = PaymentCard.load()
+    if not card:
+        return None
+    return {'number': card.number, 'holder': card.holder, 'bank': card.bank}
+
+
 def _prorate(rental, pending_period, today):
     """Erta yakunlashda haqiqatda foydalanilgan kunlar uchun summa.
 
@@ -199,6 +207,8 @@ class WorkerDashboardView(APIView):
             'last_receipt_status':    last_receipt_status,
             'telegram_connected':     bool(request.user.telegram_chat_id),
             'daily_fine_rate':        payment_services.daily_fine_amount(rental),
+            # Ishchi to'lov modalida shu kartaga pul o'tkazadi.
+            'payment_card':           _card_payload(),
         })
 
 

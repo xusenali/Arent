@@ -94,3 +94,37 @@ class PaymentReceipt(UUIDModel):
 
     def __str__(self):
         return f'Chek {self.id} — {self.status}'
+
+
+class PaymentCard(UUIDModel):
+    """Ishchilar pul o'tkazadigan karta — bitta yagona yozuv (singleton).
+
+    Admin uni sidebar'dagi profil blokidan kiritadi, ishchi esa to'lov
+    modalida ko'radi. Yozuv har doim bitta bo'lishi uchun ``load()`` ishlatiladi.
+    """
+
+    number     = models.CharField(max_length=16, help_text='Faqat raqamlar, 16 xona.')
+    holder     = models.CharField(max_length=100, blank=True, default='')
+    bank       = models.CharField(max_length=64, blank=True, default='')
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='+',
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'payment_card'
+
+    def __str__(self):
+        return self.masked
+
+    @property
+    def masked(self) -> str:
+        """Ro'yxatlarda ko'rsatish uchun: 8600 **** **** 1234."""
+        n = self.number
+        return f'{n[:4]} **** **** {n[-4:]}' if len(n) == 16 else n
+
+    @classmethod
+    def load(cls):
+        """Yagona yozuvni qaytaradi (hali kiritilmagan bo'lsa ``None``)."""
+        return cls.objects.select_related('updated_by').first()

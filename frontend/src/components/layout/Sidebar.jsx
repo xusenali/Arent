@@ -10,6 +10,7 @@ import {
   ScooterIcon,
   ArchiveIcon,
 } from '../ui/icons.jsx'
+import PaymentCardBox from '../payments/PaymentCardBox.jsx'
 import { useAuthStore } from '../../store/authStore.js'
 
 export default function Sidebar({ role }) {
@@ -87,6 +88,9 @@ export default function Sidebar({ role }) {
           <p className="truncate text-sm font-semibold text-text">{user?.full_name}</p>
           <p className="text-xs text-text-muted">{user?.phone}</p>
         </div>
+
+        {/* Ishchilar shu kartaga pul o'tkazadi */}
+        {role === 'super_admin' && <PaymentCardBox />}
         <button
           type="button"
           onClick={toggleLang}

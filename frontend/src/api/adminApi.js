@@ -99,3 +99,16 @@ export function updateAdminUnit(id, formData) {
 export function deleteAdminUnit(id) {
   return apiRequest(`/api/admin/units/${id}`, { method: 'DELETE' })
 }
+
+// ─── to'lov kartasi (ishchilar shu raqamga pul o'tkazadi) ────────────────────
+
+export function fetchPaymentCard() {
+  return apiRequest('/api/admin/payment-card')
+}
+
+export function savePaymentCard({ number, holder = '', bank = '' }) {
+  return apiRequest('/api/admin/payment-card', {
+    method: 'PUT',
+    body: { number, holder, bank },
+  })
+}

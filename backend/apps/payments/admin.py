@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Payment, PaymentReceipt
+from .models import Payment, PaymentCard, PaymentReceipt
 
 
 @admin.register(Payment)
@@ -22,3 +22,9 @@ class PaymentReceiptAdmin(admin.ModelAdmin):
     list_filter = ['status']
     list_select_related = ['payment', 'reviewed_by']
     readonly_fields = ['uploaded_at']
+
+
+@admin.register(PaymentCard)
+class PaymentCardAdmin(admin.ModelAdmin):
+    list_display = ['masked', 'holder', 'bank', 'updated_by', 'updated_at']
+    list_select_related = ['updated_by']

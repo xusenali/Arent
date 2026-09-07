@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import StatusBadge from '../../components/ui/StatusBadge.jsx'
-import FileUploader from '../../components/ui/FileUploader.jsx'
 import Button from '../../components/ui/Button.jsx'
 import { ClockIcon } from '../../components/ui/icons.jsx'
-import { fetchWorkerDashboard, uploadPaymentReceipt } from '../../api/workerApi.js'
+import PayNowModal from '../../components/payments/PayNowModal.jsx'
+import { fetchWorkerDashboard } from '../../api/workerApi.js'
 import { formatDate } from '../../utils/date.js'
 
 const STATUS_TO_BADGE = { active: 'active', overdue: 'overdue', completed: 'completed' }
@@ -101,33 +101,19 @@ export default function WorkerDashboardPage() {
   const [rental, setRental]           = useState(undefined)
   const [tgConnected, setTgConnected] = useState(true)
   const [loadError, setLoadError]     = useState(null)
-  const [receiptFile, setReceiptFile] = useState(null)
-  const [isUploading, setIsUploading] = useState(false)
-  const [uploadError, setUploadError] = useState(null)
+  const [showPayModal, setShowPayModal] = useState(false)
 
-  useEffect(() => {
-    fetchWorkerDashboard()
+  const load = useCallback(
+    () => fetchWorkerDashboard()
       .then((data) => {
         setTgConnected(!!data.telegram_connected)
         setRental(data.rental_id ? data : null)
       })
-      .catch((err) => setLoadError(err.message))
-  }, [])
+      .catch((err) => setLoadError(err.message)),
+    [],
+  )
 
-  async function handleUpload() {
-    if (!receiptFile) return
-    setIsUploading(true)
-    setUploadError(null)
-    try {
-      await uploadPaymentReceipt({ file: receiptFile })
-      setRental((prev) => prev ? { ...prev, last_receipt_status: 'pending' } : prev)
-      setReceiptFile(null)
-    } catch (err) {
-      setUploadError(err.message)
-    } finally {
-      setIsUploading(false)
-    }
-  }
+  useEffect(() => { load() }, [load])
 
   if (loadError) return <p className="text-red-400">{loadError}</p>
   if (rental === undefined) return <p className="text-text-muted">{t('common.loading')}</p>
@@ -170,9 +156,10 @@ export default function WorkerDashboardPage() {
     )
   }
 
-  const dailyFineRate = Number(rental.daily_fine_rate || 0)
-  const canUpload     = rental.has_pending_payment && rental.last_receipt_status !== 'pending'
+  const dailyFineRate  = Number(rental.daily_fine_rate || 0)
+  const totalDue       = Number(rental.total_due ?? rental.pending_payment_amount ?? 0)
   const receiptPending = rental.has_pending_payment && rental.last_receipt_status === 'pending'
+  const canPay         = rental.has_pending_payment && !receiptPending
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -238,33 +225,26 @@ export default function WorkerDashboardPage() {
       {/* Payment timing info */}
       <PaymentTimingCard rental={rental} t={t} />
 
-      {/* Chek yuklash — pending to'lov bo'lganda */}
-      {(canUpload || receiptPending) && (
-        <div className="mb-4 rounded-xl border border-border bg-surface p-4 sm:p-6">
-          <h2 className="mb-1 font-bold text-text">{t('worker_dashboard.upload_title')}</h2>
-          <p className="mb-4 text-sm text-text-muted">{t('worker_dashboard.upload_desc')}</p>
-
-          {receiptPending ? (
-            <div className="flex items-center gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-400">
-              <ClockIcon className="h-5 w-5 shrink-0" />
-              {t('worker_dashboard.pending_receipt')}
-            </div>
-          ) : (
-            <div className="space-y-3 sm:space-y-4">
-              <FileUploader
-                accept="image/*"
-                maxSizeMb={5}
-                hint="JPG, PNG — 5MB gacha"
-                file={receiptFile}
-                onChange={setReceiptFile}
-              />
-              {uploadError && <p className="text-sm text-red-400">{uploadError}</p>}
-              <Button onClick={handleUpload} loading={isUploading} disabled={!receiptFile} fullWidth>
-                {t('worker_dashboard.send_receipt')}
-              </Button>
-            </div>
-          )}
+      {/* To'lov — chek kutilayotgan bo'lsa holat, aks holda tugma */}
+      {receiptPending && (
+        <div className="mb-4 flex items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-4 text-sm text-amber-400">
+          <ClockIcon className="h-5 w-5 shrink-0" />
+          <span>{t('worker_dashboard.pending_receipt')}</span>
         </div>
+      )}
+
+      {canPay && (
+        <Button onClick={() => setShowPayModal(true)} fullWidth>
+          To'lov qilish — {formatSum(totalDue)}
+        </Button>
+      )}
+
+      {showPayModal && (
+        <PayNowModal
+          rental={rental}
+          onClose={() => setShowPayModal(false)}
+          onSent={() => { setShowPayModal(false); load() }}
+        />
       )}
     </div>
   )
