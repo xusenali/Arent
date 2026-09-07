@@ -1,14 +1,25 @@
 import datetime
 
 from celery import shared_task
-from django.conf import settings
 from django.db.models import Sum
 from django.utils import timezone
 
 from .models import Rental
 
 
-# ─── public helpers (imported by payments/views.py too) ──────────────────────
+# ─── public helpers (imported by views.py too) ───────────────────────────────
+
+# Kunlik jarima miqdori transport turiga qarab (so'm)
+DAILY_FINE_BY_TYPE = {
+    'scooter': 70_000,
+    'bike':    30_000,
+}
+
+
+def _daily_fine_amount(rental):
+    """Transport turiga mos kunlik jarima summasi."""
+    return DAILY_FINE_BY_TYPE.get(rental.unit.unit_type, 30_000)
+
 
 def _period_amount(rental):
     """Ijara davrining asosiy narxini hisoblaydi."""
@@ -117,7 +128,7 @@ def apply_daily_fines():
         if not already_fined:
             Payment.objects.create(
                 rental=rental,
-                amount=settings.DAILY_FINE_AMOUNT,
+                amount=_daily_fine_amount(rental),
                 is_fine=True,
                 fine_days_count=1,
             )

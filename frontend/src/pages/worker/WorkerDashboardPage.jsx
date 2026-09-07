@@ -38,7 +38,7 @@ function PaymentTimingCard({ rental, t }) {
     )
   }
 
-  // pay_timing === 'end'
+  // pay_timing === 'end' — muddati o'tgan
   if (days_left <= 0) {
     return (
       <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 p-4 sm:p-5">
@@ -46,10 +46,12 @@ function PaymentTimingCard({ rental, t }) {
           {t('worker_dashboard.payment_overdue')}
         </p>
         <p className="mb-1 text-xl font-black text-red-400">{formatSum(pending_payment_amount)}</p>
-        <p className="text-xs text-red-400/80">{t('worker_dashboard.payment_due_end_desc')}</p>
+        <p className="text-xs text-red-400/80">{t('worker_dashboard.payment_overdue_action')}</p>
       </div>
     )
   }
+
+  // pay_timing === 'end', muddati yaqinlashdi
   if (days_left <= 3) {
     return (
       <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 sm:p-5">
@@ -61,6 +63,7 @@ function PaymentTimingCard({ rental, t }) {
       </div>
     )
   }
+
   return (
     <div className="mb-4 rounded-xl border border-border bg-surface p-4 sm:p-5">
       <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
@@ -76,12 +79,12 @@ const TG_BOT = import.meta.env.VITE_TELEGRAM_BOT_USERNAME
 
 export default function WorkerDashboardPage() {
   const { t } = useTranslation()
-  const [rental, setRental]               = useState(undefined)
-  const [tgConnected, setTgConnected]     = useState(true)
-  const [loadError, setLoadError]         = useState(null)
-  const [receiptFile, setReceiptFile]     = useState(null)
-  const [isUploading, setIsUploading]     = useState(false)
-  const [uploadError, setUploadError]     = useState(null)
+  const [rental, setRental]           = useState(undefined)
+  const [tgConnected, setTgConnected] = useState(true)
+  const [loadError, setLoadError]     = useState(null)
+  const [receiptFile, setReceiptFile] = useState(null)
+  const [isUploading, setIsUploading] = useState(false)
+  const [uploadError, setUploadError] = useState(null)
 
   useEffect(() => {
     fetchWorkerDashboard()
@@ -148,12 +151,14 @@ export default function WorkerDashboardPage() {
     )
   }
 
-  const canUpload = rental.has_pending_payment && rental.last_receipt_status !== 'pending'
+  const dailyFineRate = Number(rental.daily_fine_rate || 0)
+  const canUpload     = rental.has_pending_payment && rental.last_receipt_status !== 'pending'
   const receiptPending = rental.has_pending_payment && rental.last_receipt_status === 'pending'
 
   return (
     <div className="mx-auto max-w-3xl">
       {TgBanner}
+
       {/* Header */}
       <div className="mb-5 flex items-start justify-between gap-3">
         <div>
@@ -165,17 +170,19 @@ export default function WorkerDashboardPage() {
         <StatusBadge status={STATUS_TO_BADGE[rental.status]} />
       </div>
 
-      {/* Overdue banner */}
+      {/* Overdue banner — kunlik jarima */}
       {rental.status === 'overdue' && (
         <div className="mb-5 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-4 sm:px-6 sm:py-5">
           <p className="mb-1 text-xs font-bold uppercase tracking-wide text-red-400">
             {t('worker_dashboard.overdue_banner')}
           </p>
           <p className="text-xl font-black text-red-400 sm:text-2xl">
-            {Number(rental.current_fine).toLocaleString('uz-UZ')} {t('common.sum')}
+            {formatSum(rental.current_fine)}
           </p>
           <p className="mt-1 text-xs text-red-400/80">
-            {Math.abs(rental.days_left)} {t('worker_dashboard.overdue_desc')}
+            {Math.abs(rental.days_left)} {t('worker_dashboard.overdue_desc', {
+              rate: dailyFineRate.toLocaleString('uz-UZ'),
+            })}
           </p>
         </div>
       )}
@@ -204,7 +211,7 @@ export default function WorkerDashboardPage() {
             {t('worker_dashboard.amount_due')}
           </p>
           <p className="text-xs font-bold text-gold sm:text-sm">
-            {Number(rental.pending_payment_amount || 0).toLocaleString('uz-UZ')} {t('common.sum')}
+            {formatSum(Number(rental.pending_payment_amount || 0))}
           </p>
         </div>
       </div>
@@ -212,7 +219,7 @@ export default function WorkerDashboardPage() {
       {/* Payment timing info */}
       <PaymentTimingCard rental={rental} t={t} />
 
-      {/* Receipt upload — faqat pending to'lov bo'lsa */}
+      {/* Chek yuklash — pending to'lov bo'lganda */}
       {(canUpload || receiptPending) && (
         <div className="mb-4 rounded-xl border border-border bg-surface p-4 sm:p-6">
           <h2 className="mb-1 font-bold text-text">{t('worker_dashboard.upload_title')}</h2>
@@ -240,7 +247,6 @@ export default function WorkerDashboardPage() {
           )}
         </div>
       )}
-
     </div>
   )
 }
