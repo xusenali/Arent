@@ -37,6 +37,16 @@ export function adminEndRental(id) {
   return apiRequest(`/api/admin/workers/${id}/rental/end`, { method: 'POST' })
 }
 
+/** Erta yakunlash hisobi: kim kimga qancha to'lashini ko'rsatadi (yozmaydi). */
+export function fetchRentalSettlement(workerId) {
+  return apiRequest(`/api/admin/workers/${workerId}/rental/settlement`)
+}
+
+/** Hisobni yozib, ijarani yakunlaydi: transport bo'shaydi, ishchi arxivga tushadi. */
+export function settleAndCloseRental(workerId) {
+  return apiRequest(`/api/admin/workers/${workerId}/rental/settlement`, { method: 'POST' })
+}
+
 export function fetchArchivedWorkers() {
   return apiRequest('/api/admin/workers/archive').then((d) => d.results ?? d)
 }

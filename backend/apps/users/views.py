@@ -111,13 +111,21 @@ class WorkerListCreateView(generics.ListCreateAPIView):
         return WorkerCreateSerializer if self.request.method == 'POST' else UserSerializer
 
     def get_queryset(self):
+        from apps.rentals.models import Rental
+
         queryset = super().get_queryset()
+
+        # Ijarasi yakunlangan ishchi arxivga o'tadi — asosiy ro'yxatda ko'rinmaydi.
+        archived_ids = (
+            Rental.objects.filter(status=Rental.Status.COMPLETED)
+            .exclude(worker__rentals__status__in=[Rental.Status.ACTIVE, Rental.Status.OVERDUE])
+            .values_list('worker_id', flat=True)
+        )
+        queryset = queryset.exclude(id__in=archived_ids)
+
         status_filter = self.request.query_params.get('status')
         if status_filter == 'overdue':
-            worker_ids = queryset.filter(
-                rentals__status='overdue'
-            ).values_list('id', flat=True)
-            return queryset.filter(id__in=worker_ids)
+            return queryset.filter(rentals__status=Rental.Status.OVERDUE).distinct()
         if status_filter:
             return queryset.filter(status=status_filter)
         return queryset

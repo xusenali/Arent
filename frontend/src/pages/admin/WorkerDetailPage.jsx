@@ -7,6 +7,7 @@ import StatusBadge from '../../components/ui/StatusBadge.jsx'
 import MediaPreview from '../../components/ui/MediaPreview.jsx'
 import { ChevronLeftIcon, MapPinIcon } from '../../components/ui/icons.jsx'
 import WorkerPayments from '../../components/payments/WorkerPayments.jsx'
+import SettlementModal from '../../components/payments/SettlementModal.jsx'
 import {
   fetchWorkerDetail,
   fetchWorkerRental,
@@ -109,6 +110,8 @@ export default function WorkerDetailPage() {
   const [showEndModal, setShowEndModal]  = useState(false)
   const [isEnding,     setIsEnding]      = useState(false)
   const [endError,     setEndError]      = useState(null)
+  const [showSettle,   setShowSettle]    = useState(false)
+  const [settleResult, setSettleResult]  = useState(null)
 
   // To'lov tasdiqlangandan keyin ijara muddati o'zgaradi — qayta o'qiymiz.
   const reloadRental = useCallback(
@@ -280,13 +283,22 @@ export default function WorkerDetailPage() {
         <div className="mb-4 flex items-center justify-between gap-3">
           <h2 className="font-bold text-text">Transport va Ijara</h2>
           {rental && rental.status !== 'completed' && (
-            <button
-              type="button"
-              onClick={() => setShowEndModal(true)}
-              className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-400 transition hover:border-red-500/60 hover:bg-red-500/20"
-            >
-              Ijarani yakunlash
-            </button>
+            <div className="flex flex-col items-stretch gap-2 sm:items-end">
+              <button
+                type="button"
+                onClick={() => setShowEndModal(true)}
+                className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-400 transition hover:border-red-500/60 hover:bg-red-500/20"
+              >
+                Ijarani yakunlash
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowSettle(true)}
+                className="rounded-lg border border-gold/40 bg-gold/10 px-3 py-1.5 text-xs font-bold text-gold transition hover:border-gold/70 hover:bg-gold/20"
+              >
+                Hisob-kitob bilan yakunlash
+              </button>
+            </div>
           )}
         </div>
         {endError && <p className="mb-3 text-sm text-red-400">{endError}</p>}
@@ -370,6 +382,60 @@ export default function WorkerDetailPage() {
           {t('worker_detail.view_map')}
         </Link>
       </section>
+
+      {/* Hisob-kitob bilan yakunlash */}
+      {showSettle && (
+        <SettlementModal
+          workerId={id}
+          workerName={worker.full_name}
+          onClose={() => setShowSettle(false)}
+          onDone={(result) => {
+            setShowSettle(false)
+            setSettleResult(result)
+            setRental(null)
+          }}
+        />
+      )}
+
+      {/* Yakuniy hisob natijasi */}
+      {settleResult && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4"
+          onClick={() => setSettleResult(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl border border-border bg-surface p-6 text-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="mb-2 text-base font-black text-text">Ijara yakunlandi</h3>
+            {Number(settleResult.refund_to_worker) > 0 ? (
+              <p className="mb-4 text-sm text-text-muted">
+                Ishchiga{' '}
+                <span className="font-black text-emerald-400">
+                  {Math.round(Number(settleResult.refund_to_worker)).toLocaleString('uz-UZ')} so'm
+                </span>{' '}
+                qaytarilishi kerak.
+              </p>
+            ) : Number(settleResult.payable_by_worker) > 0 ? (
+              <p className="mb-4 text-sm text-text-muted">
+                Ishchidan{' '}
+                <span className="font-black text-red-400">
+                  {Math.round(Number(settleResult.payable_by_worker)).toLocaleString('uz-UZ')} so'm
+                </span>{' '}
+                olinishi kerak.
+              </p>
+            ) : (
+              <p className="mb-4 text-sm text-text-muted">Qarz qolmadi.</p>
+            )}
+            <p className="mb-5 text-xs text-text-muted/70">
+              Transport bo'shatildi, ishchi arxivga tushdi.
+            </p>
+            <Button fullWidth onClick={() => navigate('/admin/workers')}>
+              Ishchilar ro'yxatiga
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Ijarani yakunlash modal */}
       {showEndModal && (

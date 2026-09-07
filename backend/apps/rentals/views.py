@@ -7,7 +7,7 @@ from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import generics
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -89,6 +89,74 @@ class AdminRentalMediaView(generics.ListCreateAPIView):
         if not rental:
             raise ValidationError("Bu ishchining faol ijarasi topilmadi")
         serializer.save(rental=rental)
+
+
+def _settlement_payload(rental, result):
+    """Hisob-kitobni frontend uchun tayyorlaydi."""
+    return {
+        'rental_id':     str(rental.id),
+        'unit_model':    rental.unit.model_name,
+        'pay_timing':    rental.pay_timing,
+        'period_days':   rental.period_days,
+        'due_date':      rental.due_date,
+        'days_used':     result.days_used,
+        'unused_days':   result.unused_days,
+        'daily_rate':    result.daily_rate,
+        'refund':        result.refund,
+        'charge_due':    result.charge_due,
+        'fine_due':      result.fine_due,
+        'net':           result.net,
+        # Aniqlik uchun: kim kimga to'laydi.
+        'refund_to_worker':  result.refund_to_worker,
+        'payable_by_worker': result.payable_by_worker,
+    }
+
+
+class AdminRentalSettlementView(APIView):
+    """Ijarani erta yakunlash — hisob-kitob bilan.
+
+    GET  /api/admin/workers/:worker_id/rental/settlement — hisobni ko'rsatadi
+    POST /api/admin/workers/:worker_id/rental/settlement — yozib, yakunlaydi
+
+    Oldindan to'lagan ishchiga foydalanilmagan kunlar uchun pul qaytariladi;
+    oxirida to'laydigan ishchidan faqat ishlagan kuni uchun haq olinadi.
+    Har ikki holatda transport bo'shaydi va ishchi arxivga tushadi.
+    """
+
+    permission_classes = [IsSuperAdmin]
+
+    def _get_rental(self, worker_id):
+        rental = (
+            Rental.objects.select_related('unit', 'worker')
+            .filter(worker_id=worker_id)
+            .exclude(status=Rental.Status.COMPLETED)
+            .order_by('-start_date')
+            .first()
+        )
+        if not rental:
+            raise NotFound('Faol ijara topilmadi.')
+        return rental
+
+    def get(self, request, worker_id):
+        rental = self._get_rental(worker_id)
+        # Hisob bugungi holatga tayanadi — avval jarima/davrni yangilab olamiz.
+        rental = payment_services.sync_rental_state(rental)
+        result = payment_services.settlement_preview(rental)
+        return Response(_settlement_payload(rental, result))
+
+    def post(self, request, worker_id):
+        rental = self._get_rental(worker_id)
+        rental = payment_services.sync_rental_state(rental)
+        try:
+            result = payment_services.settle_and_close_rental(rental, actor=request.user)
+        except payment_services.PaymentError as exc:
+            return Response({'detail': str(exc)}, status=400)
+
+        rental.refresh_from_db()
+        return Response({
+            'detail': 'Ijara yakunlandi va hisob-kitob yozildi.',
+            **_settlement_payload(rental, result),
+        })
 
 
 class AdminEndRentalView(APIView):

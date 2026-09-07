@@ -20,10 +20,10 @@ from __future__ import annotations
 
 import datetime
 from dataclasses import dataclass
-from decimal import Decimal, InvalidOperation
+from decimal import ROUND_CEILING, Decimal, InvalidOperation
 
 from django.db import transaction
-from django.db.models import Sum
+from django.db.models import F, Sum
 from django.utils import timezone
 
 from .models import Payment
@@ -294,3 +294,154 @@ def waive_open_fines(rental, *, actor, note: str) -> int:
     return Payment.objects.filter(
         rental_id=rental.pk, is_fine=True, paid_at__isnull=True,
     ).update(paid_at=timezone.now(), paid_amount=0, received_by=actor, note=note[:255])
+
+
+# ─── erta yakunlash hisob-kitobi ─────────────────────────────────────────────
+
+@dataclass(frozen=True)
+class Settlement:
+    """Ijarani erta yakunlashdagi yakuniy hisob.
+
+    ``net`` musbat bo'lsa admin ishchiga qaytaradi, manfiy bo'lsa ishchi to'laydi.
+    """
+    days_used: int          # joriy davrda foydalanilgan kunlar
+    unused_days: int        # to'langan, lekin foydalanilmagan kunlar
+    daily_rate: Decimal     # bir kunlik narx
+    refund: Decimal         # foydalanilmagan kunlar uchun qaytariladigan pul
+    charge_due: Decimal     # to'lanmagan davr uchun foydalanilgan kunlar haqi
+    fine_due: Decimal       # ochiq jarimalar
+    net: Decimal            # refund - charge_due - fine_due
+
+    @property
+    def refund_to_worker(self) -> Decimal:
+        return self.net if self.net > 0 else Decimal(0)
+
+    @property
+    def payable_by_worker(self) -> Decimal:
+        return -self.net if self.net < 0 else Decimal(0)
+
+
+def _last_covered_payment(rental):
+    """Oxirgi tasdiqlangan davr to'lovi — qaytarish hisobi shunga tayanadi."""
+    return (
+        Payment.objects
+        .filter(rental_id=rental.pk, is_fine=False, paid_at__isnull=False,
+                covered_days__gt=0, paid_amount__gt=0)
+        .order_by('-paid_at')
+        .first()
+    )
+
+
+def _ceil_sum(value: Decimal) -> Decimal:
+    """So'mni butun songa yaxlitlaydi (yuqoriga)."""
+    return value.to_integral_value(rounding=ROUND_CEILING)
+
+
+def settlement_preview(rental, today: datetime.date | None = None) -> Settlement:
+    """Ijarani bugun yakunlaganda kim kimga qancha qarzdorligini hisoblaydi.
+
+    Ikkala to'lov tartibi bitta formula bilan qamraladi:
+
+    * ``pay_timing='start'`` — ishchi oldindan to'lagan. Muddat tugamagan
+      bo'lsa, qolgan kunlar uchun pul **qaytariladi**.
+    * ``pay_timing='end'``  — davr uchun qarz ochiq. Faqat **foydalanilgan
+      kunlar** uchun haq olinadi, qolgani bekor qilinadi.
+
+    Ochiq jarimalar har ikki holatda ham hisobdan chiqariladi.
+    """
+    today = today or timezone.localdate()
+
+    # 1. To'langan, lekin foydalanilmagan kunlar -> qaytariladigan pul.
+    refund, unused_days, daily_rate = Decimal(0), 0, Decimal(0)
+    paid = _last_covered_payment(rental)
+    if paid and rental.due_date > today:
+        unused_days = min((rental.due_date - today).days, paid.covered_days)
+        daily_rate  = Decimal(paid.paid_amount) / paid.covered_days
+        refund      = _ceil_sum(daily_rate * unused_days)
+
+    # 2. Ochiq davr qarzi -> faqat foydalanilgan kunlar uchun.
+    charge_due, days_used = Decimal(0), 0
+    open_charge = open_period_payment(rental)
+    if open_charge and rental.period_days:
+        period_start = rental.due_date - datetime.timedelta(days=rental.period_days)
+        days_used    = min(max((today - period_start).days, 1), rental.period_days)
+        charge_rate  = Decimal(open_charge.amount) / rental.period_days
+        charge_due   = _ceil_sum(charge_rate * days_used)
+        if not daily_rate:
+            daily_rate = charge_rate
+
+    fine_due = outstanding(rental).fine
+
+    return Settlement(
+        days_used=days_used,
+        unused_days=unused_days,
+        daily_rate=daily_rate.quantize(Decimal('1.00')),
+        refund=refund,
+        charge_due=charge_due,
+        fine_due=fine_due,
+        net=refund - charge_due - fine_due,
+    )
+
+
+@transaction.atomic
+def settle_and_close_rental(rental, *, actor, today: datetime.date | None = None) -> Settlement:
+    """Hisob-kitobni yozib, ijarani yakunlaydi va transportni bo'shatadi.
+
+    Daftarda har bir bo'lak alohida qoladi — qaytarilgan pul manfiy
+    ``paid_amount`` bilan yoziladi, shuning uchun daromad yig'indisi
+    o'z-o'zidan to'g'rilanadi.
+    """
+    from apps.electro_units.models import ElectroUnit
+    from apps.rentals.models import Rental
+
+    today  = today or timezone.localdate()
+    rental = Rental.objects.select_for_update().select_related('unit').get(pk=rental.pk)
+    if rental.status == Rental.Status.COMPLETED:
+        raise PaymentError('Ijara allaqachon yakunlangan.')
+
+    result = settlement_preview(rental, today)
+    now    = timezone.now()
+
+    # Ochiq davr qarzi foydalanilgan kunlarga qisqartirilib yopiladi.
+    open_charge = open_period_payment(rental)
+    if open_charge:
+        open_charge.amount       = result.charge_due
+        open_charge.paid_amount  = result.charge_due
+        open_charge.covered_days = result.days_used
+        open_charge.method       = Payment.Method.CASH
+        open_charge.received_by  = actor
+        open_charge.paid_at      = now
+        open_charge.note         = f'Erta yakunlash — {result.days_used} kun uchun'
+        open_charge.save(update_fields=[
+            'amount', 'paid_amount', 'covered_days', 'method',
+            'received_by', 'paid_at', 'note',
+        ])
+
+    # Jarimalar yopiladi — ular hisobda alohida ko'rinadi.
+    Payment.objects.filter(
+        rental_id=rental.pk, is_fine=True, paid_at__isnull=True,
+    ).update(paid_at=now, paid_amount=F('amount'), received_by=actor,
+             note='Erta yakunlash hisobiga kiritildi')
+
+    # Qaytarilgan pul manfiy yozuv sifatida qoladi (daromaddan ayriladi).
+    if result.refund > 0:
+        Payment.objects.create(
+            rental=rental,
+            amount=-result.refund,
+            paid_amount=-result.refund,
+            is_fine=False,
+            method=Payment.Method.CASH,
+            received_by=actor,
+            covered_days=0,
+            paid_at=now,
+            note=f'Erta yakunlash — {result.unused_days} kun uchun qaytarildi',
+        )
+
+    rental.due_date = min(rental.due_date, today)
+    rental.status   = Rental.Status.COMPLETED
+    rental.save(update_fields=['due_date', 'status'])
+
+    rental.unit.status = ElectroUnit.Status.AVAILABLE
+    rental.unit.save(update_fields=['status'])
+
+    return result
