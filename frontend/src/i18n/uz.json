@@ -197,8 +197,20 @@
     "pending_receipt": "Chekingiz yuklandi — admin tomonidan tekshirilmoqda",
     "send_receipt": "Chekni yuborish",
     "no_rental": "Sizda hozircha faol ijara mavjud emas",
-    "location_title": "Joylashuvni ulash",
-    "location_desc": "Telegram bot orqali joylashuvingizni ulashing — admin xaritada real vaqtda ko'radi.",
-    "location_btn": "Telegram botda joylashuvni ulash"
+    "payment_due_now": "To'lov kutilmoqda",
+    "payment_due_now_desc": "Davr boshida to'lov amalga oshirilishi kerak. Chek yuboring.",
+    "payment_due_in": "{{days}} kun ichida to'lov",
+    "payment_due_today": "Bugun to'lov kuni!",
+    "payment_due_end_desc": "Ijara davri tugashida to'lov amalga oshirilishi kerak.",
+    "payment_overdue": "To'lov muddati o'tdi!",
+    "payment_next": "Keyingi to'lov: {{date}}",
+    "end_rental_btn": "Ijarani yakunlash",
+    "end_rental_title": "Ijarani yakunlamoqchimisiz?",
+    "end_rental_desc": "Transport bo'shalib, ijara yopiladi. Bu amalni bekor qilib bo'lmaydi.",
+    "end_rental_prorated": "{{days}} kun ijaralashtirildi — {{amount}} so'm to'lov talablanadi.",
+    "end_rental_no_charge": "Hech qanday qo'shimcha to'lov bo'lmaydi.",
+    "end_rental_confirm": "Ha, yakunlash",
+    "end_rental_cancel": "Bekor qilish",
+    "rental_ended_success": "Ijara muvaffaqiyatli yakunlandi"
   }
 }

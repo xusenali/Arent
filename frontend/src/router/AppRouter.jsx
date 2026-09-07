@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import MainLayout from '../layouts/MainLayout.jsx'
 import AuthLayout from '../layouts/AuthLayout.jsx'
 import AdminLayout from '../layouts/AdminLayout.jsx'
@@ -19,10 +19,8 @@ import WorkerRulesPage from '../pages/worker/WorkerRulesPage.jsx'
 import AdminDashboardPage from '../pages/admin/AdminDashboardPage.jsx'
 import WorkersPage from '../pages/admin/WorkersPage.jsx'
 import WorkerDetailPage from '../pages/admin/WorkerDetailPage.jsx'
-import MapPage from '../pages/admin/MapPage.jsx'
 import PaymentReceiptsPage from '../pages/admin/PaymentReceiptsPage.jsx'
 import TransportsPage from '../pages/admin/TransportsPage.jsx'
-import ApplicationsPage from '../pages/admin/ApplicationsPage.jsx'
 
 export default function AppRouter() {
   return (
@@ -52,10 +50,9 @@ export default function AppRouter() {
           <Route path="/admin/workers" element={<WorkersPage />} />
           <Route path="/admin/workers/:id" element={<WorkerDetailPage />} />
           {import.meta.env.VITE_ENABLE_MAP === 'true' && (
-            <Route path="/admin/map" element={<MapPage />} />
+            <Route path="/admin/map" element={<Navigate to="/admin/dashboard" replace />} />
           )}
           <Route path="/admin/transports" element={<TransportsPage />} />
-          <Route path="/admin/applications" element={<ApplicationsPage />} />
           <Route path="/admin/payment-receipts" element={<PaymentReceiptsPage />} />
         </Route>
       </Route>

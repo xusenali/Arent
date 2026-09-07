@@ -29,6 +29,10 @@ export function fetchWorkerPayments(id) {
   return apiRequest(`/api/admin/workers/${id}/payments`).then((data) => data.results ?? data)
 }
 
+export function fetchWorkerRental(id) {
+  return apiRequest(`/api/admin/workers/${id}/rental`)
+}
+
 export function fetchWorkerRentalMedia(id) {
   return apiRequest(`/api/admin/workers/${id}/rental-media`).then((data) => data.results ?? data)
 }

@@ -1,4 +1,5 @@
 from rest_framework import generics
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny
 
 from apps.users.permissions import IsSuperAdmin
@@ -28,3 +29,10 @@ class AdminUnitDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = ElectroUnit.objects.all()
     lookup_field = 'id'
     http_method_names = ['get', 'patch', 'delete']
+
+    def perform_destroy(self, instance):
+        if instance.status == ElectroUnit.Status.RENTED:
+            raise ValidationError(
+                "Bu transport hozir ijarada. Avval ijarani yakunlang."
+            )
+        instance.delete()

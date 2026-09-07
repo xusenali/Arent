@@ -43,7 +43,7 @@ const SCOOTER_PLANS = [
 ]
 
 const BIKE_PLANS = [
-  { label: 'Kunlik',   price: '20 000',  period: '1 kun',  icon: '☀️',  highlight: false },
+  { label: 'Kunlik',   price: '30 000',  period: '1 kun',  icon: '☀️',  highlight: false },
   { label: 'Haftalik', price: '100 000', period: '7 kun',  icon: '📅',  highlight: true  },
   { label: 'Oylik',    price: '400 000', period: '30 kun', icon: '🗓️', highlight: false },
 ]
@@ -96,8 +96,8 @@ function UnitCard({ unit, i, bookLabel, unavailableLabel }) {
     : unit.status === 'rented' ? 'text-red-400' : 'text-amber-400'
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-surface transition-colors hover:border-gold/40">
-      <div className="aspect-[4/3] overflow-hidden bg-bg">
+    <div className="flex flex-col overflow-hidden rounded-xl border border-border bg-surface transition-colors hover:border-gold/40">
+      <div className="aspect-[4/3] shrink-0 overflow-hidden bg-bg">
         <img
           src={getImage(unit, i)}
           alt={unit.model_name}
@@ -107,23 +107,24 @@ function UnitCard({ unit, i, bookLabel, unavailableLabel }) {
           }}
         />
       </div>
-      <div className="p-4">
-        <div className="mb-2 flex items-start justify-between gap-2">
+      <div className="flex flex-1 flex-col p-4">
+        <div className="mb-3 flex items-start justify-between gap-2">
           <h3 className="text-sm font-bold text-text">{unit.model_name}</h3>
           <span className={['shrink-0 text-xs font-semibold', statusClass].join(' ')}>
             {isAvailable ? bookLabel : unavailableLabel}
           </span>
         </div>
-        <Link
-          to={isAvailable
-            ? `/become-worker?unit=${unit.id}&name=${encodeURIComponent(unit.model_name)}&type=${unit.unit_type}`
-            : '#'}
-          className="mb-4 block"
-        >
-          <Button variant={isAvailable ? 'primary' : 'outline'} fullWidth disabled={!isAvailable}>
-            {isAvailable ? bookLabel : unavailableLabel}
-          </Button>
-        </Link>
+        <div className="mt-auto">
+          <Link
+            to={isAvailable
+              ? `/become-worker?unit=${unit.id}&name=${encodeURIComponent(unit.model_name)}&type=${unit.unit_type}`
+              : '#'}
+          >
+            <Button variant={isAvailable ? 'primary' : 'outline'} fullWidth disabled={!isAvailable}>
+              {isAvailable ? bookLabel : unavailableLabel}
+            </Button>
+          </Link>
+        </div>
       </div>
     </div>
   )

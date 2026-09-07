@@ -8,7 +8,7 @@ PERIOD_DAYS: dict[str, int] = {
 
 # Velosiped narxlari (so'm)
 BIKE_PRICES: dict[str, int] = {
-    'daily':   20_000,
+    'daily':   30_000,
     'weekly':  100_000,
     'monthly': 400_000,
 }
@@ -18,6 +18,8 @@ SCOOTER_WEEKLY_PRICES: dict[int, int] = {
     1: 350_000,
     2: 450_000,
 }
+
+SCOOTER_DAILY_PRICE = 30_000
 
 
 def calc_amount(unit, period_type: str, battery_count: int | None = None) -> int:

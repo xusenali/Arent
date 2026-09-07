@@ -32,9 +32,6 @@ export default function HomePage() {
               <Link to="/rent-transport">
                 <Button fullWidth>{t('home.see_transports')}</Button>
               </Link>
-              <Link to="/become-worker">
-                <Button variant="outline" fullWidth>{t('home.become_worker')}</Button>
-              </Link>
             </div>
           </div>
 
@@ -79,8 +76,8 @@ export default function HomePage() {
           <p className="max-w-md text-sm text-text-muted sm:text-base">
             {t('home.ready_desc')}
           </p>
-          <Link to="/become-worker" className="w-full sm:w-auto">
-            <Button fullWidth>{t('home.apply')}</Button>
+          <Link to="/rent-transport" className="w-full sm:w-auto">
+            <Button fullWidth>{t('home.see_transports')}</Button>
           </Link>
         </div>
       </section>

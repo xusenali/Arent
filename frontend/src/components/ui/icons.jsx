@@ -166,6 +166,51 @@ export function VideoIcon(props) {
   )
 }
 
+export function SearchIcon(props) {
+  return (
+    <Icon {...props}>
+      <circle cx="11" cy="11" r="7" />
+      <path d="m21 21-4.35-4.35" />
+    </Icon>
+  )
+}
+
+export function TrashIcon(props) {
+  return (
+    <Icon {...props}>
+      <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
+      <path d="M10 11v6M14 11v6" />
+    </Icon>
+  )
+}
+
+export function PencilIcon(props) {
+  return (
+    <Icon {...props}>
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5Z" />
+    </Icon>
+  )
+}
+
+export function ChevronDoubleLeftIcon(props) {
+  return (
+    <Icon {...props}>
+      <path d="M11 17l-5-5 5-5" />
+      <path d="M18 17l-5-5 5-5" />
+    </Icon>
+  )
+}
+
+export function ChevronDoubleRightIcon(props) {
+  return (
+    <Icon {...props}>
+      <path d="M13 17l5-5-5-5" />
+      <path d="M6 17l5-5-5-5" />
+    </Icon>
+  )
+}
+
 export function ScooterIcon(props) {
   return (
     <Icon {...props}>

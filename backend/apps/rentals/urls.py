@@ -1,8 +1,13 @@
 from django.urls import path
 
-from .views import AdminRentalCreateView, AdminRentalMediaView, WorkerDashboardView
+from .views import AdminRentalCreateView, AdminRentalMediaView, AdminWorkerActiveRentalView, WorkerDashboardView, WorkerEndRentalView
 
 urlpatterns = [
+    path(
+        'api/admin/workers/<uuid:worker_id>/rental',
+        AdminWorkerActiveRentalView.as_view(),
+        name='admin-worker-active-rental',
+    ),
     path(
         'api/admin/workers/<uuid:worker_id>/rentals',
         AdminRentalCreateView.as_view(),
@@ -14,4 +19,5 @@ urlpatterns = [
         name='admin-worker-rental-media',
     ),
     path('api/worker/dashboard', WorkerDashboardView.as_view(), name='worker-dashboard'),
+    path('api/worker/rental/end', WorkerEndRentalView.as_view(), name='worker-rental-end'),
 ]

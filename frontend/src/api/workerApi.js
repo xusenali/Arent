@@ -10,6 +10,10 @@ export function uploadPaymentReceipt({ file }) {
   return apiRequest('/api/worker/payment-receipts', { method: 'POST', body: formData })
 }
 
+export function endRental() {
+  return apiRequest('/api/worker/rental/end', { method: 'POST' })
+}
+
 export function fetchWorkerRules(lang = 'uz') {
   return apiRequest(`/api/worker/rules?lang=${lang}`).then((data) => data.results ?? data)
 }

@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
-import { CheckIcon, XIcon } from '../../components/ui/icons.jsx'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { CheckIcon, XIcon, SearchIcon, ChevronLeftIcon, ChevronRightIcon } from '../../components/ui/icons.jsx'
 import Button from '../../components/ui/Button.jsx'
 import {
   approvePaymentReceipt,
@@ -11,6 +11,7 @@ import {
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
+const PAGE_SIZE  = 9
 const UNIT_ICON  = { scooter: '🛴', bike: '🚲' }
 const PAY_LABEL  = { start: 'Boshida', end: 'Oxirida' }
 const STATUS_TABS = [
@@ -21,6 +22,57 @@ const STATUS_TABS = [
 
 function fmt(n)    { return Number(n).toLocaleString('uz-UZ') + " so'm" }
 function fmtDate(s){ return new Date(s).toLocaleString('uz-UZ') }
+
+// ─── search + pagination ──────────────────────────────────────────────────────
+
+function SearchInput({ value, onChange }) {
+  return (
+    <div className="relative mb-4">
+      <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted pointer-events-none" />
+      <input
+        type="search"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Ishchi ismi yoki telefon..."
+        className="w-full rounded-xl border border-border bg-surface py-2.5 pl-9 pr-4 text-sm text-text placeholder:text-text-muted focus:border-gold focus:outline-none transition-colors"
+      />
+    </div>
+  )
+}
+
+function Pagination({ page, total, onChange }) {
+  const totalPages = Math.ceil(total / PAGE_SIZE)
+  if (totalPages <= 1) return null
+  return (
+    <div className="mt-6 flex items-center justify-between text-sm">
+      <span className="text-xs text-text-muted">{total} ta · {page}/{totalPages} sahifa</span>
+      <div className="flex items-center gap-1">
+        <button type="button" disabled={page === 1} onClick={() => onChange(page - 1)}
+          className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-text-muted hover:border-gold/40 hover:text-text disabled:opacity-30">
+          <ChevronLeftIcon className="h-4 w-4" />
+        </button>
+        {Array.from({ length: totalPages }, (_, i) => i + 1)
+          .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+          .reduce((acc, p, i, arr) => { if (i > 0 && p - arr[i - 1] > 1) acc.push('…'); acc.push(p); return acc }, [])
+          .map((p, i) =>
+            p === '…' ? (
+              <span key={`e${i}`} className="px-1 text-text-muted">…</span>
+            ) : (
+              <button key={p} type="button" onClick={() => onChange(p)}
+                className={['flex h-8 min-w-[2rem] items-center justify-center rounded-lg border px-2 text-xs font-bold transition-all',
+                  p === page ? 'border-gold bg-gold/10 text-gold' : 'border-border text-text-muted hover:border-gold/40 hover:text-text'].join(' ')}>
+                {p}
+              </button>
+            )
+          )}
+        <button type="button" disabled={page === totalPages} onClick={() => onChange(page + 1)}
+          className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-text-muted hover:border-gold/40 hover:text-text disabled:opacity-30">
+          <ChevronRightIcon className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  )
+}
 
 // ─── lightbox ─────────────────────────────────────────────────────────────────
 
@@ -421,22 +473,34 @@ export default function PaymentReceiptsPage() {
   const [error,        setError]        = useState(null)
   const [processingId, setProcessingId] = useState(null)
   const [lightbox,     setLightbox]     = useState(null)
+  const [search,       setSearch]       = useState('')
+  const [page,         setPage]         = useState(1)
 
-  // naqd to'lov modal
   const [cashModal,    setCashModal]    = useState(null)
-  // chek tasdiqlash modal
   const [approveModal, setApproveModal] = useState(null)
 
   const load = useCallback((s) => {
-    setIsLoading(true)
-    setError(null)
+    setIsLoading(true); setError(null)
     fetchPaymentReceipts(s)
       .then((data) => setReceipts(data.map(mapReceipt)))
       .catch((e) => setError(e.message))
       .finally(() => setIsLoading(false))
   }, [])
 
-  useEffect(() => { load(tab) }, [tab, load])
+  useEffect(() => { load(tab); setSearch(''); setPage(1) }, [tab, load])
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase()
+    return q
+      ? receipts.filter((r) =>
+          r.worker_name?.toLowerCase().includes(q) ||
+          r.worker_phone?.includes(q) ||
+          r.unit_name?.toLowerCase().includes(q)
+        )
+      : receipts
+  }, [receipts, search])
+
+  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   async function handleReject(id) {
     setProcessingId(id)
@@ -473,58 +537,62 @@ export default function PaymentReceiptsPage() {
         <p className="text-xs text-text-muted">Chek rasmlari va yaqin to'lovlar</p>
       </div>
 
-      {/* upcoming payments */}
       <UpcomingSection onCashClick={openCashModal} />
 
-      {/* receipt tabs */}
-      <div className="mb-4 flex flex-wrap gap-2">
-        <span className="flex items-center self-center pr-2 text-sm font-semibold text-text-muted">
-          Chek rasmlari:
-        </span>
-        {STATUS_TABS.map((t) => (
-          <button
-            key={t.value}
-            type="button"
-            onClick={() => setTab(t.value)}
-            className={[
-              'flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-bold transition-all',
-              tab === t.value
-                ? 'border-gold bg-gold text-black'
-                : 'border-border bg-surface text-text-muted hover:border-gold/40 hover:text-text',
-            ].join(' ')}
-          >
-            <span className={`h-2 w-2 rounded-full ${t.dot}`} />
-            {t.label}
-            {t.value === 'pending' && pendingCount > 0 && !isLoading && (
-              <span className="ml-1 rounded-full bg-amber-400 px-1.5 py-0.5 text-[10px] font-black text-black">
-                {pendingCount}
-              </span>
-            )}
-          </button>
-        ))}
+      {/* tabs */}
+      <div className="mb-4 -mx-4 sm:mx-0">
+        <div className="flex gap-2 overflow-x-auto px-4 pb-1 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0 scrollbar-none">
+          <span className="flex shrink-0 items-center self-center pr-1 text-xs font-semibold text-text-muted">
+            Cheklar:
+          </span>
+          {STATUS_TABS.map((t) => (
+            <button key={t.value} type="button" onClick={() => setTab(t.value)}
+              className={[
+                'flex shrink-0 items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition-all',
+                tab === t.value
+                  ? 'border-gold bg-gold text-black'
+                  : 'border-border bg-surface text-text-muted hover:border-gold/40 hover:text-text',
+              ].join(' ')}
+            >
+              <span className={`h-1.5 w-1.5 rounded-full ${t.dot}`} />
+              {t.label}
+              {t.value === 'pending' && pendingCount > 0 && !isLoading && (
+                <span className="rounded-full bg-amber-400 px-1.5 py-0.5 text-[10px] font-black text-black">
+                  {pendingCount}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
       </div>
+
+      {/* search */}
+      <SearchInput value={search} onChange={(v) => { setSearch(v); setPage(1) }} />
 
       {error && <p className="mb-4 text-sm text-red-400">{error}</p>}
 
       {isLoading ? (
         <p className="text-sm text-text-muted">Yuklanmoqda...</p>
-      ) : receipts.length === 0 ? (
+      ) : paged.length === 0 ? (
         <div className="rounded-xl border border-border bg-surface py-16 text-center text-sm text-text-muted">
-          Chek yo'q
+          {search ? "Qidiruv natijasi yo'q" : "Chek yo'q"}
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {receipts.map((receipt) => (
-            <ReceiptCard
-              key={receipt.id}
-              receipt={receipt}
-              processing={processingId === receipt.id}
-              onApproveClick={(r) => setApproveModal(r)}
-              onReject={handleReject}
-              onImageClick={setLightbox}
-            />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {paged.map((receipt) => (
+              <ReceiptCard
+                key={receipt.id}
+                receipt={receipt}
+                processing={processingId === receipt.id}
+                onApproveClick={(r) => setApproveModal(r)}
+                onReject={handleReject}
+                onImageClick={setLightbox}
+              />
+            ))}
+          </div>
+          <Pagination page={page} total={filtered.length} onChange={setPage} />
+        </>
       )}
 
       {lightbox && <Lightbox src={lightbox} onClose={() => setLightbox(null)} />}

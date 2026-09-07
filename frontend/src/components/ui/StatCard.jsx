@@ -1,6 +1,8 @@
-export default function StatCard({ label, value, Icon, accent = false }) {
-  return (
-    <div className="rounded-xl border border-border bg-surface p-4 sm:p-6">
+import { Link } from 'react-router-dom'
+
+export default function StatCard({ label, value, Icon, accent = false, to }) {
+  const inner = (
+    <>
       <div className="mb-3 flex items-center justify-between sm:mb-4">
         <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted sm:text-xs">
           {label}
@@ -15,6 +17,23 @@ export default function StatCard({ label, value, Icon, accent = false }) {
       <p className={['text-xl font-black sm:text-3xl', accent ? 'text-gold' : 'text-text'].join(' ')}>
         {value}
       </p>
+    </>
+  )
+
+  if (to) {
+    return (
+      <Link
+        to={to}
+        className="block rounded-xl border border-border bg-surface p-4 transition-colors hover:border-gold/40 hover:bg-surface-hover sm:p-6"
+      >
+        {inner}
+      </Link>
+    )
+  }
+
+  return (
+    <div className="rounded-xl border border-border bg-surface p-4 sm:p-6">
+      {inner}
     </div>
   )
 }

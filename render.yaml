@@ -10,18 +10,18 @@ services:
         value: false
       - key: PYTHON_VERSION
         value: 3.12.0
-          - key: DATABASE_URL
-    value: ${DATABASE_URL}
-  - key: SECRET_KEY
-    value: ${SECRET_KEY}
-  - key: TELEGRAM_BOT_TOKEN
-    value: ${TELEGRAM_BOT_TOKEN}
-  - key: TELEGRAM_BOT_USERNAME
-    value: ${TELEGRAM_BOT_USERNAME}
-  - key: ALLOWED_HOSTS
-    value: ${ALLOWED_HOSTS}
-  - key: REDIS_URL
-    value: ${REDIS_URL}
+      - key: DATABASE_URL
+        value: ${DATABASE_URL}
+      - key: SECRET_KEY
+        value: ${SECRET_KEY}
+      - key: TELEGRAM_BOT_TOKEN
+        value: ${TELEGRAM_BOT_TOKEN}
+      - key: TELEGRAM_BOT_USERNAME
+        value: ${TELEGRAM_BOT_USERNAME}
+      - key: ALLOWED_HOSTS
+        value: ${ALLOWED_HOSTS}
+      - key: REDIS_URL
+        value: ${REDIS_URL}
 
   - type: worker
     name: arent-telegram-bot
@@ -34,15 +34,17 @@ services:
         value: false
       - key: PYTHON_VERSION
         value: 3.12.0
-          - key: DATABASE_URL
-    value: ${DATABASE_URL}
-  - key: SECRET_KEY
-    value: ${SECRET_KEY}
-  - key: TELEGRAM_BOT_TOKEN
-    value: ${TELEGRAM_BOT_TOKEN}
-  - key: TELEGRAM_BOT_USERNAME
-    value: ${TELEGRAM_BOT_USERNAME}
-  - key: ALLOWED_HOSTS
-    value: ${ALLOWED_HOSTS}
-  - key: REDIS_URL
-    value: ${REDIS_URL}
+      - key: DATABASE_URL
+        value: ${DATABASE_URL}
+      - key: SECRET_KEY
+        value: ${SECRET_KEY}
+      - key: TELEGRAM_BOT_TOKEN
+        value: ${TELEGRAM_BOT_TOKEN}
+      - key: TELEGRAM_BOT_USERNAME
+        value: ${TELEGRAM_BOT_USERNAME}
+      - key: ALLOWED_HOSTS
+        value: ${ALLOWED_HOSTS}
+      - key: REDIS_URL
+        value: ${REDIS_URL}
+      - key: CORS_ALLOWED_ORIGINS
+        value: ${CORS_ALLOWED_ORIGINS}

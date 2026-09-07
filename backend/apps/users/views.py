@@ -43,15 +43,17 @@ class RequestPasswordResetView(APIView):
         serializer.is_valid(raise_exception=True)
         phone = serializer.validated_data['phone']
 
+        telegram_connected = False
         user = User.objects.filter(phone=phone).first()
-        if user and user.telegram_chat_id:
+        if user:
             code = generate_otp_code()
             store_otp(phone, code)
-            send_otp_message(user.telegram_chat_id, code)
+            if user.telegram_chat_id:
+                telegram_connected = True
+                send_otp_message(user.telegram_chat_id, code)
 
-        # Foydalanuvchi mavjudligini oshkor qilmaslik uchun har doim bir xil javob
         return Response(
-            {'detail': "Agar hisob Telegramga ulangan bo'lsa, kod yuborildi"},
+            {'telegram_connected': telegram_connected},
             status=status.HTTP_200_OK,
         )
 
@@ -105,6 +107,7 @@ class WorkerListCreateView(generics.ListCreateAPIView):
     """
 
     permission_classes = [IsSuperAdmin]
+    pagination_class   = None  # client-side pagination
     queryset = User.objects.filter(role=User.Role.WORKER)
 
     def get_serializer_class(self):

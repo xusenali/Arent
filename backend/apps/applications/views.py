@@ -25,8 +25,9 @@ class PublicWorkerApplicationCreateView(generics.CreateAPIView):
 
 class AdminApplicationListView(generics.ListAPIView):
     """GET /api/admin/applications ?status=pending"""
-    serializer_class = AdminApplicationSerializer
+    serializer_class   = AdminApplicationSerializer
     permission_classes = [IsSuperAdmin]
+    pagination_class   = None  # client-side pagination
 
     def get_queryset(self):
         qs = WorkerApplication.objects.select_related('unit')
@@ -59,14 +60,16 @@ class AdminApplicationApproveView(APIView):
             return Response({'detail': 'Bu telefon raqam bilan foydalanuvchi allaqachon mavjud.'}, status=400)
 
         with transaction.atomic():
-            raw_password = phone.replace('+', '').replace(' ', '')
             worker = User.objects.create_user(
                 phone=phone,
                 full_name=app.full_name,
                 role=User.Role.WORKER,
                 status=User.Status.ACTIVE,
-                password=raw_password,
+                password=None,
             )
+            if app.password_hash:
+                worker.password = app.password_hash
+                worker.save(update_fields=['password'])
 
             if app.unit:
                 from apps.electro_units.models import ElectroUnit

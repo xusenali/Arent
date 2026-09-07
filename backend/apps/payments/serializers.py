@@ -43,6 +43,22 @@ class PaymentReceiptSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class AdminWorkerPaymentSerializer(serializers.ModelSerializer):
+    """Admin → ishchi to'lovlari: rental va unit ma'lumotlari bilan."""
+    unit_name  = serializers.CharField(source='rental.unit.model_name', read_only=True)
+    unit_type  = serializers.CharField(source='rental.unit.unit_type',  read_only=True)
+    pay_timing = serializers.CharField(source='rental.pay_timing',      read_only=True)
+    receipts   = ReceiptInlineSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Payment
+        fields = [
+            'id', 'rental', 'unit_name', 'unit_type', 'pay_timing',
+            'amount', 'is_fine', 'fine_days_count', 'paid_at', 'created_at', 'receipts',
+        ]
+        read_only_fields = fields
+
+
 class WorkerReceiptUploadSerializer(serializers.Serializer):
     receipt_image = serializers.ImageField()
 

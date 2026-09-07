@@ -39,6 +39,8 @@ class WorkerApplication(UUIDModel):
         help_text='Faqat skuter uchun: 1 yoki 2 batareya',
     )
 
+    password_hash = models.CharField(max_length=255, blank=True, default='')
+
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
     created_at = models.DateTimeField(auto_now_add=True)
 

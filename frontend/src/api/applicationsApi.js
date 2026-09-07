@@ -1,13 +1,14 @@
 import { apiRequest } from './client.js'
 import { normalizePhone } from '../utils/formatPhone.js'
 
-export function submitWorkerApplication({ fullName, phone, desiredUnitModel, unitId, period_type, pay_timing, battery_count }) {
+export function submitWorkerApplication({ fullName, phone, password, desiredUnitModel, unitId, period_type, pay_timing, battery_count }) {
   return apiRequest('/api/public/worker-applications', {
     method: 'POST',
     auth: false,
     body: {
       full_name:           fullName,
       phone:               normalizePhone(phone),
+      password,
       desired_unit_model:  desiredUnitModel  || null,
       unit:                unitId            || null,
       period_type:         period_type       || 'weekly',

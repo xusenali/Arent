@@ -17,6 +17,7 @@ from apps.users.permissions import IsSuperAdmin, IsWorker
 
 from .models import Payment, PaymentReceipt
 from .serializers import (
+    AdminWorkerPaymentSerializer,
     PaymentReceiptSerializer,
     PaymentSerializer,
     UpcomingPaymentSerializer,
@@ -27,18 +28,25 @@ from .serializers import (
 class AdminWorkerPaymentsView(generics.ListAPIView):
     """GET /api/admin/workers/:id/payments"""
 
-    serializer_class = PaymentSerializer
+    serializer_class = AdminWorkerPaymentSerializer
     permission_classes = [IsSuperAdmin]
 
     def get_queryset(self):
-        return Payment.objects.filter(rental__worker_id=self.kwargs['worker_id'])
+        return (
+            Payment.objects
+            .select_related('rental__unit')
+            .prefetch_related('receipts')
+            .filter(rental__worker_id=self.kwargs['worker_id'])
+            .order_by('-created_at')
+        )
 
 
 class AdminPaymentReceiptListView(generics.ListAPIView):
     """GET /api/admin/payment-receipts ?status=pending"""
 
-    serializer_class = PaymentReceiptSerializer
+    serializer_class   = PaymentReceiptSerializer
     permission_classes = [IsSuperAdmin]
+    pagination_class   = None  # client-side pagination
 
     def get_queryset(self):
         queryset = PaymentReceipt.objects.select_related(
@@ -88,11 +96,28 @@ class BaseReceiptReviewView(APIView):
         payment.save(update_fields=update_fields)
 
         rental = payment.rental
-        has_open_balance = Payment.objects.filter(
-            rental=rental, paid_at__isnull=True,
-        ).exclude(id=payment.id).exists()
+        today  = timezone.localdate()
 
-        if not has_open_balance and rental.status == Rental.Status.OVERDUE:
+        if not payment.is_fine:
+            # Davr to'lovi to'landi — boshqa ochiq davr to'lovi bormi?
+            has_unpaid_period = (
+                Payment.objects.filter(rental=rental, is_fine=False, paid_at__isnull=True)
+                .exclude(id=payment.id)
+                .exists()
+            )
+            if not has_unpaid_period and rental.due_date <= today:
+                # Muddati o'tgan yoki aynan bugun muddati — RENEW
+                from apps.rentals.tasks import renew_rental
+                renew_rental(rental)
+                return
+
+        # Jarima to'lovi yoki muddati hali o'tmagan → ochiq to'lov qolmasa ACTIVE ga qayt
+        has_any_open = (
+            Payment.objects.filter(rental=rental, paid_at__isnull=True)
+            .exclude(id=payment.id)
+            .exists()
+        )
+        if not has_any_open and rental.status == Rental.Status.OVERDUE:
             rental.status = Rental.Status.ACTIVE
             rental.save(update_fields=['status'])
 

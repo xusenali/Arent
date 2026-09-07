@@ -9,6 +9,7 @@ import {
   ReceiptIcon,
   BookIcon,
   LogoutIcon,
+  ScooterIcon,
 } from '../components/ui/icons.jsx'
 import { useAuthStore } from '../store/authStore.js'
 
@@ -64,7 +65,7 @@ function BottomNav({ role }) {
   const adminLinks = [
     { to: '/admin/dashboard', label: t('sidebar.dashboard'), Icon: GridIcon },
     { to: '/admin/workers', label: t('sidebar.workers'), Icon: UsersIcon },
-    { to: '/admin/map', label: t('sidebar.map'), Icon: MapPinIcon },
+    { to: '/admin/transports', label: 'Transport', Icon: ScooterIcon },
     { to: '/admin/payment-receipts', label: t('sidebar.receipts_short'), Icon: ReceiptIcon },
   ]
   const workerLinks = [
@@ -80,19 +81,29 @@ function BottomNav({ role }) {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 flex border-t border-border bg-surface md:hidden">
-      {links.map(({ to, label, Icon }) => (
-        <NavLink
-          key={to}
-          to={to}
-          className={({ isActive }) =>
-            ['flex flex-1 flex-col items-center gap-0.5 py-3 text-[10px] font-semibold uppercase tracking-wide transition-colors',
-              isActive ? 'text-gold' : 'text-text-muted'].join(' ')
-          }
-        >
-          <Icon className="h-5 w-5" />
-          {label}
-        </NavLink>
-      ))}
+      {links.map(({ to, label, Icon, soon }) =>
+        soon ? (
+          <div
+            key={to}
+            className="flex flex-1 flex-col items-center gap-0.5 py-3 text-[10px] font-semibold uppercase tracking-wide opacity-40 cursor-not-allowed select-none text-red-400"
+          >
+            <Icon className="h-5 w-5" />
+            {label}
+          </div>
+        ) : (
+          <NavLink
+            key={to}
+            to={to}
+            className={({ isActive }) =>
+              ['flex flex-1 flex-col items-center gap-0.5 py-3 text-[10px] font-semibold uppercase tracking-wide transition-colors',
+                isActive ? 'text-gold' : 'text-text-muted'].join(' ')
+            }
+          >
+            <Icon className="h-5 w-5" />
+            {label}
+          </NavLink>
+        )
+      )}
       <button
         type="button"
         onClick={handleLogout}
@@ -108,13 +119,17 @@ function BottomNav({ role }) {
 export default function DashboardLayout({ role }) {
   return (
     <div className="flex min-h-screen bg-bg">
-      {/* Desktop sidebar */}
+      {/* Desktop sidebar — fixed */}
       <div className="hidden md:block">
-        <Sidebar role={role} />
+        <div className="fixed left-0 top-0 h-screen w-64 z-20">
+          <Sidebar role={role} />
+        </div>
+        {/* placeholder to push content right */}
+        <div className="w-64 shrink-0" />
       </div>
 
       {/* Right side: top bar (mobile only) + content */}
-      <div className="flex flex-1 flex-col">
+      <div className="flex flex-1 flex-col min-w-0">
         <MobileTopBar />
         <main className="flex-1 overflow-y-auto px-4 py-6 pb-24 md:px-8 md:py-8 md:pb-8">
           <Outlet />

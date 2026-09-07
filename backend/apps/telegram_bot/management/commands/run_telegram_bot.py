@@ -42,11 +42,15 @@ MAIN_KEYBOARD = ReplyKeyboardMarkup(
     resize_keyboard=True,
 )
 
-CONTACT_ONLY_KEYBOARD = ReplyKeyboardMarkup(
-    [[KeyboardButton('📱 Telefon raqamni yuborish', request_contact=True)]],
+CONTACT_KEYBOARD = ReplyKeyboardMarkup(
+    [[KeyboardButton('📱 Kontaktni yuborish', request_contact=True)]],
     resize_keyboard=True,
     one_time_keyboard=True,
+    input_field_placeholder='+998 XX XXX XX XX',
 )
+
+# eski nom — backward compat
+CONTACT_ONLY_KEYBOARD = CONTACT_KEYBOARD
 
 LOCATION_KEYBOARD = ReplyKeyboardMarkup(
     [[KeyboardButton('📍 Joylashuvimni ulashish', request_location=True)]],
@@ -70,14 +74,17 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text(
             f"Salom, {user.full_name}! 👋\n\n"
             "📍 Joylashuvingizni ulash uchun quyidagi tugmani bosing.\n"
-            "🔐 Parolni tiklash uchun /reset buyrug'ini yuboring.",
+            "🔐 Parolni tiklash uchun telefon raqamingizni yuboring.",
             reply_markup=MAIN_KEYBOARD,
         )
     else:
         await update.message.reply_text(
-            "Assalomu alaykum! Ashrapov Rent boti.\n\n"
-            "Hisobingizni ulash uchun telefon raqamingizni yuboring:",
-            reply_markup=CONTACT_ONLY_KEYBOARD,
+            "Assalomu alaykum! 👋 <b>Ashrapov Rent</b> boti.\n\n"
+            "Hisobingizni ulash uchun telefon raqamingizni yuboring:\n\n"
+            "• Quyidagi tugmani bosing <b>yoki</b>\n"
+            "• Raqamni to'g'ridan-to'g'ri yozing: <code>+998901234567</code>",
+            parse_mode='HTML',
+            reply_markup=CONTACT_KEYBOARD,
         )
 
 
@@ -85,29 +92,51 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 # Kontakt
 # ---------------------------------------------------------------------------
 
-async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def _link_and_send_otp(phone: str, chat_id: str, update: Update) -> None:
+    """Telefon raqam bo'yicha hisobni ulaydi va agar OTP kutilayotgan bo'lsa yuboradi."""
     from apps.users.models import User
 
-    contact = update.message.contact
-    phone = _normalize_phone(contact.phone_number)
-    chat_id = str(update.effective_chat.id)
+    user = await sync_to_async(
+        lambda: User.objects.filter(phone=phone).first()
+    )()
 
-    updated = await sync_to_async(
-        User.objects.filter(phone=phone).update
-    )(telegram_chat_id=chat_id)
-
-    if updated:
+    if not user:
         await update.message.reply_text(
-            "✅ Hisobingiz muvaffaqiyatli ulandi!\n\n"
-            "📍 Joylashuvingizni ulash uchun quyidagi tugmani bosing.\n"
-            "🔐 Parolni tiklash uchun /reset buyrug'ini yuboring.",
+            "❌ Bu raqam bilan hisob topilmadi.\n"
+            "Admin bilan bog'laning.",
+            reply_markup=CONTACT_KEYBOARD,
+        )
+        return
+
+    # Chat ID ni saqlash
+    if user.telegram_chat_id != chat_id:
+        await sync_to_async(
+            User.objects.filter(phone=phone).update
+        )(telegram_chat_id=chat_id)
+
+    # Kutilayotgan OTP bormi?
+    stored = await sync_to_async(get_otp)(phone)
+    if stored:
+        await update.message.reply_text(
+            f"🔐 Parolni tiklash kodi:\n\n"
+            f"<b>{stored}</b>\n\n"
+            "Kodni saytga kiriting. Kod 5 daqiqa amal qiladi.",
+            parse_mode='HTML',
             reply_markup=MAIN_KEYBOARD,
         )
     else:
         await update.message.reply_text(
-            "❌ Bu telefon raqam bilan ro'yxatdan o'tilgan hisob topilmadi.\n"
-            "Admin bilan bog'laning."
+            f"✅ Hisob ulandi, {user.full_name}!\n\n"
+            "Parolni tiklash uchun avval saytda «Parolni unutdim» bo'limini oching.",
+            reply_markup=MAIN_KEYBOARD,
         )
+
+
+async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    contact = update.message.contact
+    phone = _normalize_phone(contact.phone_number)
+    chat_id = str(update.effective_chat.id)
+    await _link_and_send_otp(phone, chat_id, update)
 
 
 # ---------------------------------------------------------------------------
@@ -345,6 +374,26 @@ def _normalize_phone(raw_phone: str) -> str:
     return f'+{digits}'
 
 
+def _looks_like_phone(text: str) -> bool:
+    """Matn telefon raqamga o'xshayaptimi (9-13 raqam)."""
+    digits = ''.join(ch for ch in text if ch.isdigit())
+    return 7 <= len(digits) <= 13
+
+
+# ---------------------------------------------------------------------------
+# Telefon raqam matn orqali yuborilsa → OTP
+# ---------------------------------------------------------------------------
+
+async def handle_phone_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Foydalanuvchi raqamini matn sifatida yuborganida ulaydi va OTP yuboradi."""
+    text = update.message.text.strip()
+    if not _looks_like_phone(text):
+        return
+    chat_id = str(update.effective_chat.id)
+    phone = _normalize_phone(text)
+    await _link_and_send_otp(phone, chat_id, update)
+
+
 # ---------------------------------------------------------------------------
 # Management command
 # ---------------------------------------------------------------------------
@@ -391,6 +440,12 @@ class Command(BaseCommand):
             allow_reentry=True,
         )
         application.add_handler(reset_conv)
+
+        # Telefon raqam matn — OTP yuborish (reset_conv dan keyin, group=1)
+        application.add_handler(
+            MessageHandler(filters.TEXT & ~filters.COMMAND, handle_phone_text),
+            group=1,
+        )
 
         # 8-soatlik joylashuv eslatmasi
         if application.job_queue:

@@ -9,7 +9,6 @@ import {
   BookIcon,
   LogoutIcon,
   ScooterIcon,
-  FileIcon,
 } from '../ui/icons.jsx'
 import { useAuthStore } from '../../store/authStore.js'
 
@@ -22,11 +21,8 @@ export default function Sidebar({ role }) {
   const ADMIN_LINKS = [
     { to: '/admin/dashboard', label: t('sidebar.dashboard'), Icon: GridIcon },
     { to: '/admin/workers', label: t('sidebar.workers'), Icon: UsersIcon },
-    { to: '/admin/transports',   label: 'Transportlar', Icon: ScooterIcon },
-    { to: '/admin/applications', label: 'Arizalar',     Icon: FileIcon },
-    ...(import.meta.env.VITE_ENABLE_MAP === 'true'
-      ? [{ to: '/admin/map', label: t('sidebar.map'), Icon: MapPinIcon }]
-      : []),
+    { to: '/admin/transports', label: 'Transportlar', Icon: ScooterIcon },
+    { to: '/admin/map', label: t('sidebar.map'), Icon: MapPinIcon, soon: true },
     { to: '/admin/payment-receipts', label: t('sidebar.receipts'), Icon: ReceiptIcon },
   ]
 
@@ -55,23 +51,35 @@ export default function Sidebar({ role }) {
       </div>
 
       <nav className="flex-1 space-y-1 px-3 py-6">
-        {links.map(({ to, label, Icon }) => (
-          <NavLink
-            key={to}
-            to={to}
-            className={({ isActive }) =>
-              [
-                'flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors',
-                isActive
-                  ? 'bg-gold/10 text-gold'
-                  : 'text-text-muted hover:bg-surface-hover hover:text-text',
-              ].join(' ')
-            }
-          >
-            <Icon className="h-[18px] w-[18px]" />
-            {label}
-          </NavLink>
-        ))}
+        {links.map(({ to, label, Icon, soon }) =>
+          soon ? (
+            <div
+              key={to}
+              className="flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium opacity-40 cursor-not-allowed select-none text-red-400"
+              title="Tez orada"
+            >
+              <Icon className="h-[18px] w-[18px]" />
+              {label}
+              <span className="ml-auto text-[10px] font-bold uppercase tracking-wide opacity-80">soon</span>
+            </div>
+          ) : (
+            <NavLink
+              key={to}
+              to={to}
+              className={({ isActive }) =>
+                [
+                  'flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors',
+                  isActive
+                    ? 'bg-gold/10 text-gold'
+                    : 'text-text-muted hover:bg-surface-hover hover:text-text',
+                ].join(' ')
+              }
+            >
+              <Icon className="h-[18px] w-[18px]" />
+              {label}
+            </NavLink>
+          )
+        )}
       </nav>
 
       <div className="border-t border-border p-4">

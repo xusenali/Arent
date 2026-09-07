@@ -26,7 +26,6 @@ export default function Header() {
 
   const NAV_LINKS = [
     { to: '/rent-transport', label: t('nav.transports') },
-    { to: '/become-worker', label: t('nav.become_worker') },
     { to: '/rules', label: t('nav.rules') },
   ]
 

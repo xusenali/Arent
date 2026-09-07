@@ -9,7 +9,7 @@ import { submitWorkerApplication } from '../../api/applicationsApi.js'
 
 // ─── pricing constants (mirror of backend utils.py) ───────────────────────────
 const SCOOTER_PRICES = { 1: 350_000, 2: 450_000 }
-const BIKE_PRICES    = { daily: 20_000, weekly: 100_000, monthly: 400_000 }
+const BIKE_PRICES    = { daily: 30_000, weekly: 100_000, monthly: 400_000 }
 const PERIOD_LABELS  = { daily: 'Kunlik', weekly: 'Haftalik', monthly: 'Oylik' }
 
 function formatSum(n) {
@@ -131,6 +131,8 @@ export default function BecomeWorkerPage() {
 
   const [fullName,     setFullName]     = useState('')
   const [phone,        setPhone]        = useState('')
+  const [password,     setPassword]     = useState('')
+  const [confirmPwd,   setConfirmPwd]   = useState('')
   const [periodType,   setPeriodType]   = useState('weekly')
   const [payTiming,    setPayTiming]    = useState('start')
   const [batteryCount, setBatteryCount] = useState(1)
@@ -150,6 +152,8 @@ export default function BecomeWorkerPage() {
     const errs = {}
     if (fullName.trim().length < 3) errs.fullName = t('become_worker.full_name_error')
     if (!isValidPhone(phone))       errs.phone    = t('become_worker.phone_error')
+    if (password.length < 6)        errs.password = 'Parol kamida 6 ta belgidan iborat bo\'lsin'
+    if (password !== confirmPwd)    errs.confirmPwd = 'Parollar mos kelmadi'
     setErrors(errs)
     return Object.keys(errs).length === 0
   }
@@ -163,6 +167,7 @@ export default function BecomeWorkerPage() {
       await submitWorkerApplication({
         fullName,
         phone,
+        password,
         desiredUnitModel: unitType ?? null,
         unitId:           unitId ?? null,
         period_type:      isScooter ? 'weekly' : periodType,
@@ -212,6 +217,22 @@ export default function BecomeWorkerPage() {
           value={phone}
           onChange={(e) => setPhone(formatPhone(e.target.value))}
           error={errors.phone}
+        />
+        <Input
+          label="Parol"
+          type="password"
+          placeholder="Kamida 6 ta belgi"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          error={errors.password}
+        />
+        <Input
+          label="Parolni tasdiqlang"
+          type="password"
+          placeholder="Parolni qayta kiriting"
+          value={confirmPwd}
+          onChange={(e) => setConfirmPwd(e.target.value)}
+          error={errors.confirmPwd}
         />
 
         {unitName && (
