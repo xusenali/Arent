@@ -226,6 +226,7 @@ class WorkerDashboardView(APIView):
             'period_days':            rental.period_days,
             'has_pending_payment':    pending_period is not None,
             'pending_payment_amount': pending_period.amount if pending_period else 0,
+            'total_due':              (pending_period.amount if pending_period else 0) + total_fine,
             'prorated_amount':        prorated_amount,
             'days_used':              days_used,
             'current_fine':           total_fine,

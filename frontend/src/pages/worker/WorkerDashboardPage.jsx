@@ -40,12 +40,31 @@ function PaymentTimingCard({ rental, t }) {
 
   // pay_timing === 'end' — muddati o'tgan
   if (days_left <= 0) {
+    const { current_fine, total_due } = rental
+    const hasFine = Number(current_fine) > 0
     return (
       <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 p-4 sm:p-5">
-        <p className="mb-1 text-xs font-bold uppercase tracking-wide text-red-400">
+        <p className="mb-2 text-xs font-bold uppercase tracking-wide text-red-400">
           {t('worker_dashboard.payment_overdue')}
         </p>
-        <p className="mb-1 text-xl font-black text-red-400">{formatSum(pending_payment_amount)}</p>
+        {hasFine ? (
+          <div className="mb-2 space-y-0.5">
+            <div className="flex items-center justify-between text-sm text-red-300/80">
+              <span>Asosiy to'lov</span>
+              <span className="font-semibold">{formatSum(pending_payment_amount)}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm text-red-300/80">
+              <span>Jarima</span>
+              <span className="font-semibold">+{formatSum(current_fine)}</span>
+            </div>
+            <div className="mt-1.5 flex items-center justify-between border-t border-red-500/20 pt-1.5">
+              <span className="text-sm font-bold text-red-400">Jami to'lash kerak</span>
+              <span className="text-xl font-black text-red-400">{formatSum(total_due)}</span>
+            </div>
+          </div>
+        ) : (
+          <p className="mb-1 text-xl font-black text-red-400">{formatSum(pending_payment_amount)}</p>
+        )}
         <p className="text-xs text-red-400/80">{t('worker_dashboard.payment_overdue_action')}</p>
       </div>
     )
@@ -211,7 +230,7 @@ export default function WorkerDashboardPage() {
             {t('worker_dashboard.amount_due')}
           </p>
           <p className="text-xs font-bold text-gold sm:text-sm">
-            {formatSum(Number(rental.pending_payment_amount || 0))}
+            {formatSum(Number(rental.total_due ?? rental.pending_payment_amount ?? 0))}
           </p>
         </div>
       </div>
