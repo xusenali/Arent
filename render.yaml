@@ -24,6 +24,8 @@ services:
         value: ${ALLOWED_HOSTS}
       - key: REDIS_URL
         value: ${REDIS_URL}
+      - key: CLOUDINARY_URL
+        value: ${CLOUDINARY_URL}
 
   - type: worker
     name: arent-telegram-bot
