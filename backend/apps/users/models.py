@@ -1,8 +1,17 @@
 import uuid
 
+from django.conf import settings
 from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
 from django.contrib.auth.models import PermissionsMixin
 from django.db import models
+
+
+def _video_storage():
+    if getattr(settings, 'CLOUDINARY_URL', ''):
+        from cloudinary_storage.storage import VideoMediaCloudinaryStorage
+        return VideoMediaCloudinaryStorage()
+    from django.core.files.storage import FileSystemStorage
+    return FileSystemStorage()
 
 
 class UserManager(BaseUserManager):
@@ -57,7 +66,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     location_updated_at = models.DateTimeField(null=True, blank=True)
     id_card_front = models.ImageField(upload_to='worker_documents/id_cards/', null=True, blank=True)
     id_card_back = models.ImageField(upload_to='worker_documents/id_cards/', null=True, blank=True)
-    agreement_video = models.FileField(upload_to='worker_documents/videos/', null=True, blank=True)
+    agreement_video = models.FileField(upload_to='worker_documents/videos/', null=True, blank=True, storage=_video_storage)
     created_at = models.DateTimeField(auto_now_add=True)
 
     is_staff = models.BooleanField(default=False)
