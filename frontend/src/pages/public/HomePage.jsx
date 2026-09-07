@@ -15,33 +15,29 @@ export default function HomePage() {
   return (
     <div>
       {/* Hero */}
-      <section className="relative overflow-hidden border-b border-border bg-surface">
-        <div className="mx-auto grid max-w-6xl items-center gap-8 px-4 py-12 sm:px-6 sm:py-16 lg:grid-cols-2 lg:gap-12 lg:py-24">
-          <div className="order-2 lg:order-1">
-            <span className="mb-4 inline-block rounded-full border border-gold/40 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-gold sm:px-4 sm:py-1.5 sm:text-xs">
+      <section
+        className="relative overflow-hidden border-b border-border bg-cover bg-center"
+        style={{ backgroundImage: 'url(/velo.PNG)', minHeight: '80vh' }}
+      >
+        {/* dark overlay — stronger at bottom so text is always readable */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/40 to-black/80" />
+
+        {/* content pinned to bottom */}
+        <div className="absolute inset-x-0 bottom-0 px-4 pb-10 sm:px-8 sm:pb-14 lg:px-12 lg:pb-16">
+          <div className="mx-auto max-w-6xl">
+            <span className="mb-3 inline-block rounded-full border border-gold/50 bg-black/30 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-gold sm:mb-4 sm:px-4 sm:py-1.5 sm:text-xs">
               {t('home.badge')}
             </span>
-            <h1 className="mb-4 text-3xl font-black leading-[1.1] text-text sm:text-4xl lg:text-5xl lg:leading-[1.05]">
+            <h1 className="mb-3 text-3xl font-black leading-[1.1] text-white sm:text-4xl lg:text-6xl lg:leading-[1.05]">
               {t('home.hero_title_1')} <br />
               <span className="text-gold">{t('home.hero_title_2')}</span> {t('home.hero_title_3')}
             </h1>
-            <p className="mb-7 text-sm text-text-muted sm:mb-8 sm:text-base">
+            <p className="mb-6 max-w-lg text-sm text-white/70 sm:text-base">
               {t('home.hero_desc')}
             </p>
-            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-              <Link to="/rent-transport">
-                <Button fullWidth>{t('home.see_transports')}</Button>
-              </Link>
-            </div>
-          </div>
-
-          <div className="order-1 mx-auto w-full max-w-sm lg:order-2 lg:max-w-md">
-            <img
-              src="/velo.PNG"
-              alt="Ashrapov Rent — elektro transport"
-              className="w-full rounded-2xl object-cover shadow-[0_0_40px_#d2c4b422]"
-              onError={(e) => { e.target.style.display = 'none' }}
-            />
+            <Link to="/rent-transport">
+              <Button>{t('home.see_transports')}</Button>
+            </Link>
           </div>
         </div>
       </section>
