@@ -194,6 +194,32 @@ def sync_rental_state(rental, today: datetime.date | None = None):
 
 # ─── to'lovni tasdiqlash ─────────────────────────────────────────────────────
 
+def _due_date_after(rental, days: int, closes_open_charge: bool) -> datetime.date:
+    """To'lov tasdiqlangandan keyingi ``due_date``.
+
+    Muhim nuqta: ochiq davr qarzi *allaqachon* ``due_date`` bilan berilgan
+    davrga tegishli. Ijara ochilganda ham, ``_charge_next_period`` da ham
+    ``due_date`` uzaytirilishi va qarz yozilishi birga bo'ladi.
+
+    Shuning uchun o'sha qarz to'langanda kun **qo'shilmaydi**, balki davr
+    boshidan qayta o'lchanadi:
+
+        due_date = davr_boshi + covered_days
+
+    Masalan: ijara 8-sentabrda ochildi, davr 7 kun, ``due_date`` = 15-sentabr.
+    Ishchi 7 kunlik to'lovni to'lasa, muddat 15-sentabrligicha qoladi —
+    22-sentabrga ketmaydi. Admin 3 kun deb yozsa, muddat 11-sentabr bo'ladi.
+
+    Ochiq qarz bo'lmasa (ishchi oldindan qo'shimcha to'lasa) — kun mavjud
+    muddat ustiga qo'shiladi.
+    """
+    if not closes_open_charge:
+        return rental.due_date + datetime.timedelta(days=days)
+
+    period_start = rental.due_date - datetime.timedelta(days=rental.period_days)
+    return period_start + datetime.timedelta(days=days)
+
+
 @transaction.atomic
 def confirm_payment(*, rental, amount: Decimal, days: int, method: str, actor,
                     receipt=None, note: str = '') -> Payment:
@@ -220,8 +246,10 @@ def confirm_payment(*, rental, amount: Decimal, days: int, method: str, actor,
         payment = Payment.objects.select_for_update().get(pk=receipt.payment_id)
         if payment.paid_at is not None:
             raise PaymentError("Bu to'lov allaqachon tasdiqlangan.")
+        closes_open_charge = True
     else:
         existing = open_period_payment(rental)
+        closes_open_charge = existing is not None
         payment = (
             Payment.objects.select_for_update().get(pk=existing.pk)
             if existing else
@@ -246,7 +274,7 @@ def confirm_payment(*, rental, amount: Decimal, days: int, method: str, actor,
         rental_id=rental.pk, is_fine=True, paid_at__isnull=True,
     ).update(paid_at=now, paid_amount=0, settled_by=payment, received_by=actor)
 
-    rental.due_date += datetime.timedelta(days=days)
+    rental.due_date = _due_date_after(rental, days, closes_open_charge)
     rental.status = (
         Rental.Status.ACTIVE if rental.due_date >= timezone.localdate()
         else Rental.Status.OVERDUE

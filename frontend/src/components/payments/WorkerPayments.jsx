@@ -15,11 +15,18 @@ const fmtSum = (n) => (n == null ? '—' : `${Number(n).toLocaleString('uz-UZ')}
 
 const METHOD_LABEL = { cash: 'Naqd', receipt: 'Chek' }
 
-/** ISO sanaga kun qo'shib, "DD.MM.YYYY" ko'rinishida qaytaradi. */
-function addDays(isoDate, days) {
-  if (!isoDate || !days) return null
-  const d = new Date(`${isoDate}T00:00:00`)
-  d.setDate(d.getDate() + Number(days))
+/**
+ * To'lov tasdiqlangandan keyingi muddat — backend'dagi _due_date_after bilan bir xil.
+ *
+ * Ochiq qarz yopilayotgan bo'lsa, u qarz allaqachon `due_date` gacha bo'lgan
+ * davrga tegishli, shuning uchun muddat davr boshidan qayta o'lchanadi.
+ * Aks holda (oldindan to'lov) kun mavjud muddat ustiga qo'shiladi.
+ */
+function nextDueDate({ dueDate, periodDays, days, closesOpenCharge }) {
+  if (!dueDate || !days) return null
+  const d = new Date(`${dueDate}T00:00:00`)
+  const offset = closesOpenCharge ? Number(days) - Number(periodDays || 0) : Number(days)
+  d.setDate(d.getDate() + offset)
   return d.toLocaleDateString('uz-UZ', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
@@ -60,7 +67,7 @@ function ImageLightbox({ src, onClose }) {
  * @param {object}   props.rental    ijara — muddat hisobini ko'rsatish uchun
  * @param {number}   props.suggest   taklif qilinadigan summa (ochiq qarz)
  */
-function ConfirmPaymentModal({ receipt, rental, suggest, onConfirm, onClose }) {
+function ConfirmPaymentModal({ receipt, rental, suggest, closesOpenCharge, onConfirm, onClose }) {
   const isReceipt = Boolean(receipt)
   const [amount, setAmount] = useState(suggest ? String(suggest) : '')
   const [days,   setDays]   = useState(rental?.period_days ? String(rental.period_days) : '')
@@ -69,7 +76,12 @@ function ConfirmPaymentModal({ receipt, rental, suggest, onConfirm, onClose }) {
   const [error,  setError]  = useState(null)
   const [zoom,   setZoom]   = useState(false)
 
-  const newDueDate = addDays(rental?.due_date, days)
+  const newDueDate = nextDueDate({
+    dueDate: rental?.due_date,
+    periodDays: rental?.period_days,
+    days,
+    closesOpenCharge,
+  })
 
   async function submit() {
     const amt = Number(digitsOnly(amount))
@@ -157,8 +169,8 @@ function ConfirmPaymentModal({ receipt, rental, suggest, onConfirm, onClose }) {
 
           {newDueDate && (
             <p className="mb-4 rounded-lg border border-gold/20 bg-gold/5 px-3 py-2 text-xs text-text-muted">
-              Ijara muddati <span className="font-bold text-gold">{days} kunga</span> uzayadi
-              {' → '}
+              To'lov <span className="font-bold text-gold">{days} kunni</span> qoplaydi.
+              Keyingi to'lov sanasi:{' '}
               <span className="font-bold text-text">{newDueDate}</span>.
               Ochiq jarimalar yopiladi.
             </p>
@@ -421,7 +433,11 @@ export default function WorkerPayments({ workerId, rental, onRentalChange }) {
         {canTakeCash && (
           <button
             type="button"
-            onClick={() => setConfirmTarget({ receipt: null, suggest: totalOpen || null })}
+            onClick={() => setConfirmTarget({
+              receipt: null,
+              suggest: totalOpen || null,
+              closesOpenCharge: openPeriodPayment != null,
+            })}
             className="flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-bold text-emerald-400 transition hover:bg-emerald-500/20 active:scale-95"
           >
             <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -455,7 +471,11 @@ export default function WorkerPayments({ workerId, rental, onRentalChange }) {
             onZoom={setZoomSrc}
             onReject={setRejectTarget}
             onApprove={(receipt, payment) =>
-              setConfirmTarget({ receipt, suggest: Number(payment.amount) + openFine })
+              setConfirmTarget({
+                receipt,
+                suggest: Number(payment.amount) + openFine,
+                closesOpenCharge: true,
+              })
             }
           />
         ))
@@ -465,6 +485,7 @@ export default function WorkerPayments({ workerId, rental, onRentalChange }) {
         <ConfirmPaymentModal
           receipt={confirmTarget.receipt}
           rental={rental}
+          closesOpenCharge={confirmTarget.closesOpenCharge}
           suggest={confirmTarget.suggest ?? (openPeriodPayment ? Number(openPeriodPayment.amount) : null)}
           onConfirm={handleConfirm}
           onClose={() => setConfirmTarget(null)}
