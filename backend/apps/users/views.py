@@ -283,9 +283,11 @@ class AdminDashboardStatsView(APIView):
         now = timezone.now()
         month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
+        # Daromad doim paid_amount bo'yicha: boshqa to'lov ichida yopilgan
+        # jarimalarda paid_amount=0, shuning uchun pul ikki marta sanalmaydi.
         monthly_revenue = (
             Payment.objects.filter(paid_at__gte=month_start)
-            .aggregate(total=Sum('amount'))
+            .aggregate(total=Sum('paid_amount'))
             .get('total')
             or 0
         )
@@ -294,10 +296,10 @@ class AdminDashboardStatsView(APIView):
         thirty_days_ago = now - timedelta(days=30)
         daily_revenue_qs = (
             Payment.objects
-            .filter(paid_at__gte=thirty_days_ago)
+            .filter(paid_at__gte=thirty_days_ago, paid_amount__gt=0)
             .annotate(day=TruncDate('paid_at'))
             .values('day')
-            .annotate(total=Sum('amount'))
+            .annotate(total=Sum('paid_amount'))
             .order_by('day')
         )
         daily_revenue = [

@@ -20,7 +20,6 @@ const WorkerRulesPage     = lazy(() => import('../pages/worker/WorkerRulesPage.j
 const AdminDashboardPage  = lazy(() => import('../pages/admin/AdminDashboardPage.jsx'))
 const WorkersPage         = lazy(() => import('../pages/admin/WorkersPage.jsx'))
 const WorkerDetailPage    = lazy(() => import('../pages/admin/WorkerDetailPage.jsx'))
-const PaymentReceiptsPage = lazy(() => import('../pages/admin/PaymentReceiptsPage.jsx'))
 const TransportsPage      = lazy(() => import('../pages/admin/TransportsPage.jsx'))
 const ArchivePage         = lazy(() => import('../pages/admin/ArchivePage.jsx'))
 
@@ -64,7 +63,6 @@ export default function AppRouter() {
               <Route path="/admin/map" element={<Navigate to="/admin/dashboard" replace />} />
             )}
             <Route path="/admin/transports" element={<TransportsPage />} />
-            <Route path="/admin/payment-receipts" element={<PaymentReceiptsPage />} />
             <Route path="/admin/archive" element={<ArchivePage />} />
           </Route>
         </Route>

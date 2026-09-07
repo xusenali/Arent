@@ -5,12 +5,20 @@ from .models import Payment, PaymentReceipt
 
 @admin.register(Payment)
 class PaymentAdmin(admin.ModelAdmin):
-    list_display = ['id', 'rental', 'amount', 'is_fine', 'paid_at', 'created_at']
-    list_filter = ['is_fine']
-    autocomplete_fields = ['rental']
+    list_display = [
+        'id', 'rental', 'amount', 'paid_amount', 'is_fine',
+        'method', 'covered_days', 'received_by', 'paid_at', 'created_at',
+    ]
+    list_filter = ['is_fine', 'method']
+    list_select_related = ['rental', 'received_by']
+    autocomplete_fields = ['rental', 'received_by']
+    search_fields = ['id', 'rental__worker__full_name', 'rental__worker__phone']
+    readonly_fields = ['created_at']
 
 
 @admin.register(PaymentReceipt)
 class PaymentReceiptAdmin(admin.ModelAdmin):
-    list_display = ['id', 'payment', 'status', 'uploaded_at', 'reviewed_by']
+    list_display = ['id', 'payment', 'status', 'uploaded_at', 'reviewed_by', 'reviewed_at']
     list_filter = ['status']
+    list_select_related = ['payment', 'reviewed_by']
+    readonly_fields = ['uploaded_at']

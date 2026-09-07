@@ -50,9 +50,9 @@ export default function AdminDashboardPage() {
   const cards = [
     { label: t('admin_dashboard.total_workers'), value: stats.total_workers, Icon: UsersIcon, accent: true, to: '/admin/workers' },
     { label: t('admin_dashboard.active_rentals'), value: stats.active_rentals, Icon: GridIcon, to: '/admin/workers' },
-    { label: t('admin_dashboard.monthly_revenue'), value: `${Number(stats.monthly_revenue).toLocaleString('uz-UZ')} ${t('common.sum')}`, Icon: ReceiptIcon, to: '/admin/payment-receipts' },
+    { label: t('admin_dashboard.monthly_revenue'), value: `${Number(stats.monthly_revenue).toLocaleString('uz-UZ')} ${t('common.sum')}`, Icon: ReceiptIcon, to: '/admin/workers' },
     { label: t('admin_dashboard.overdue'), value: stats.overdue_count, Icon: ClockIcon, to: '/admin/workers' },
-    { label: t('admin_dashboard.pending_receipts'), value: stats.pending_receipts_count, Icon: ReceiptIcon, to: '/admin/payment-receipts' },
+    { label: t('admin_dashboard.pending_receipts'), value: stats.pending_receipts_count, Icon: ReceiptIcon, to: '/admin/workers' },
     { label: t('admin_dashboard.pending_requests'), value: stats.pending_worker_requests_count, Icon: UsersIcon, to: '/admin/workers' },
   ]
 

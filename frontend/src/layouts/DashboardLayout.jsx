@@ -6,7 +6,6 @@ import {
   GridIcon,
   UsersIcon,
   MapPinIcon,
-  ReceiptIcon,
   BookIcon,
   LogoutIcon,
   ScooterIcon,
@@ -21,7 +20,6 @@ const ROOT_PATHS = [
   '/admin/transports',
   '/admin/applications',
   '/admin/map',
-  '/admin/payment-receipts',
   '/admin/archive',
   '/worker/dashboard',
   '/worker/rules',
@@ -68,7 +66,6 @@ function BottomNav({ role }) {
     { to: '/admin/dashboard', label: t('sidebar.dashboard'), Icon: GridIcon },
     { to: '/admin/workers', label: t('sidebar.workers'), Icon: UsersIcon },
     { to: '/admin/transports', label: 'Transport', Icon: ScooterIcon },
-    { to: '/admin/payment-receipts', label: t('sidebar.receipts_short'), Icon: ReceiptIcon },
     { to: '/admin/archive', label: 'Arxiv', Icon: ArchiveIcon },
   ]
   const workerLinks = [

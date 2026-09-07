@@ -120,8 +120,6 @@
     "dashboard": "Dashboard",
     "workers": "Ishchilar",
     "map": "Xarita",
-    "receipts": "To'lov cheklari",
-    "receipts_short": "Cheklar",
     "rules": "Qoidalar",
     "logout": "Chiqish"
   },
@@ -170,11 +168,6 @@
     "fine": "Jarima",
     "payment": "To'lov",
     "no_payments": "To'lovlar mavjud emas"
-  },
-  "receipts": {
-    "title": "To'lov cheklari",
-    "subtitle": "Tasdiqlashni kutayotgan cheklar",
-    "empty": "Kutilayotgan cheklar yo'q"
   },
   "map": {
     "title": "Ishchilar xaritasi",

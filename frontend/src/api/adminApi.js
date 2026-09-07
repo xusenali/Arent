@@ -57,30 +57,31 @@ export function fetchAdminLocations() {
   return apiRequest('/api/admin/locations')
 }
 
-export function fetchPaymentReceipts(status) {
-  const query = status ? `?status=${status}` : ''
-  return apiRequest(`/api/admin/payment-receipts${query}`).then((data) => data.results ?? data)
-}
-
-export function approvePaymentReceipt(id, amount) {
+/**
+ * Chekni tasdiqlash. Admin olingan summani va necha kunga amal qilishini kiritadi.
+ * @param {string} id      chek id
+ * @param {object} payload { amount, days, note? }
+ */
+export function approvePaymentReceipt(id, { amount, days, note = '' }) {
   return apiRequest(`/api/admin/payment-receipts/${id}/approve`, {
     method: 'POST',
-    body: amount ? { amount } : undefined,
+    body: { amount: String(amount), days, note },
   })
 }
 
-export function rejectPaymentReceipt(id) {
-  return apiRequest(`/api/admin/payment-receipts/${id}/reject`, { method: 'POST' })
+export function rejectPaymentReceipt(id, reason = '') {
+  return apiRequest(`/api/admin/payment-receipts/${id}/reject`, {
+    method: 'POST',
+    body: { reason },
+  })
 }
 
-export function fetchUpcomingPayments() {
-  return apiRequest('/api/admin/upcoming-payments').then((data) => data.results ?? data)
-}
-
-export function recordCashPayment(rentalId, amount, customDays = null) {
-  const body = { rental_id: rentalId, amount }
-  if (customDays) body.custom_days = customDays
-  return apiRequest('/api/admin/cash-payment', { method: 'POST', body })
+/** "Naqd oldim" — admin qo'lda to'lov yozadi: summa + necha kunga amal qiladi. */
+export function recordCashPayment(rentalId, { amount, days, note = '' }) {
+  return apiRequest('/api/admin/cash-payment', {
+    method: 'POST',
+    body: { rental_id: rentalId, amount: String(amount), days, note },
+  })
 }
 
 export function fetchAdminUnits() {

@@ -1,21 +1,20 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import Input from '../../components/ui/Input.jsx'
 import Button from '../../components/ui/Button.jsx'
 import StatusBadge from '../../components/ui/StatusBadge.jsx'
 import MediaPreview from '../../components/ui/MediaPreview.jsx'
-import { ChevronLeftIcon, MapPinIcon, XIcon } from '../../components/ui/icons.jsx'
+import { ChevronLeftIcon, MapPinIcon } from '../../components/ui/icons.jsx'
+import WorkerPayments from '../../components/payments/WorkerPayments.jsx'
 import {
   fetchWorkerDetail,
-  fetchWorkerPayments,
   fetchWorkerRental,
   fetchWorkerRentalMedia,
   updateWorker,
   uploadWorkerDocument,
   deleteWorkerDocument,
   adminEndRental,
-  recordCashPayment,
 } from '../../api/adminApi.js'
 import { formatDate } from '../../utils/date.js'
 
@@ -28,114 +27,9 @@ const STATUS_MAP  = {
   overdue:   { label: "Muddati o'tgan",   cls: 'bg-red-400/10    text-red-400    border-red-400/20'    },
   completed: { label: 'Yakunlangan',       cls: 'bg-border        text-text-muted border-border'         },
 }
-const RECEIPT_STATUS = {
-  pending:  { label: 'Kutilmoqda', cls: 'bg-amber-400/10   text-amber-400'   },
-  approved: { label: 'Tasdiqlangan', cls: 'bg-emerald-400/10 text-emerald-400' },
-  rejected: { label: 'Rad etilgan', cls: 'bg-red-400/10    text-red-400'    },
-}
 
-function fmt(n) {
-  return n != null ? `${Number(n).toLocaleString('uz-UZ')} so'm` : '—'
-}
-
-function periodLabel(days) {
-  if (days === 1)  return 'Kunlik (1 kun)'
-  if (days === 7)  return 'Haftalik (7 kun)'
-  if (days === 30) return 'Oylik (30 kun)'
-  return `${days} kun`
-}
-
-// ─── receipt lightbox modal ───────────────────────────────────────────────────
-
-function ReceiptModal({ receipts, amount, onClose }) {
-  const [idx, setIdx] = useState(0)
-  const total = receipts.length
-  const cur   = receipts[idx]
-
-  useEffect(() => {
-    function onKey(e) { if (e.key === 'Escape') onClose() }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
-
-  const rSt = RECEIPT_STATUS[cur?.status] ?? RECEIPT_STATUS.pending
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex flex-col bg-black/90"
-      onClick={onClose}
-    >
-      {/* header */}
-      <div
-        className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 px-4 py-3"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center gap-3">
-          <div>
-            <p className="text-sm font-bold text-white">
-              To'lov cheki {total > 1 ? `(${idx + 1}/${total})` : ''}
-            </p>
-            <p className="text-xs text-white/50">{fmt(amount)}</p>
-          </div>
-          <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${rSt.cls}`}>
-            {rSt.label}
-          </span>
-        </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="flex h-9 w-9 items-center justify-center rounded-full text-white/60 hover:bg-white/10 hover:text-white"
-        >
-          <XIcon className="h-5 w-5" />
-        </button>
-      </div>
-
-      {/* image area */}
-      <div
-        className="flex flex-1 items-center justify-center overflow-hidden p-4"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {cur?.receipt_image ? (
-          <img
-            src={cur.receipt_image}
-            alt={`Chek ${idx + 1}`}
-            className="max-h-full max-w-full rounded-xl object-contain shadow-2xl"
-          />
-        ) : (
-          <p className="text-white/40">Rasm mavjud emas</p>
-        )}
-      </div>
-
-      {/* footer */}
-      <div
-        className="flex shrink-0 items-center justify-between border-t border-white/10 px-4 py-3"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <p className="text-xs text-white/40">{cur?.uploaded_at ? formatDate(cur.uploaded_at) : ''}</p>
-        {total > 1 && (
-          <div className="flex gap-2">
-            <button
-              type="button"
-              disabled={idx === 0}
-              onClick={() => setIdx((i) => i - 1)}
-              className="rounded-lg border border-white/20 px-3 py-1.5 text-xs font-semibold text-white/70 hover:bg-white/10 disabled:opacity-30"
-            >
-              ← Oldingi
-            </button>
-            <button
-              type="button"
-              disabled={idx === total - 1}
-              onClick={() => setIdx((i) => i + 1)}
-              className="rounded-lg border border-white/20 px-3 py-1.5 text-xs font-semibold text-white/70 hover:bg-white/10 disabled:opacity-30"
-            >
-              Keyingi →
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
+const PERIOD_LABEL = { 1: 'Kunlik (1 kun)', 7: 'Haftalik (7 kun)', 30: 'Oylik (30 kun)' }
+const periodLabel = (days) => PERIOD_LABEL[days] ?? `${days} kun`
 
 // ─── rental info card ─────────────────────────────────────────────────────────
 
@@ -193,63 +87,6 @@ function RentalCard({ rental }) {
   )
 }
 
-// ─── payments section ─────────────────────────────────────────────────────────
-
-function PaymentRow({ row, onViewReceipt }) {
-  const paid   = row.paid_at != null
-  const isFine = row.is_fine
-
-  return (
-    <div className="border-b border-border px-4 py-3.5 last:border-b-0 sm:px-5">
-      <div className="flex items-start gap-3">
-        {/* left: date + amount + type */}
-        <div className="min-w-0 flex-1 space-y-0.5">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm font-bold text-text">{fmt(row.amount)}</p>
-            <span className={[
-              'rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wide',
-              isFine
-                ? 'bg-red-400/10 text-red-400'
-                : 'bg-gold/10 text-gold',
-            ].join(' ')}>
-              {isFine ? 'Jarima' : "To'lov"}
-            </span>
-            <span className={[
-              'rounded-full px-2 py-0.5 text-[10px] font-semibold',
-              paid ? 'bg-emerald-400/10 text-emerald-400' : 'bg-amber-400/10 text-amber-400',
-            ].join(' ')}>
-              {paid ? "To'langan" : "Kutilmoqda"}
-            </span>
-          </div>
-          <p className="text-xs text-text-muted">
-            {paid
-              ? `To'langan: ${formatDate(row.paid_at)}`
-              : `Yaratilgan: ${formatDate(row.created_at)}`
-            }
-          </p>
-          {isFine && row.fine_days_count != null && (
-            <p className="text-[11px] text-red-400/70">{row.fine_days_count} kun jarima</p>
-          )}
-        </div>
-
-        {/* right: receipt button */}
-        {row.receipts?.length > 0 && (
-          <button
-            type="button"
-            onClick={() => onViewReceipt(row)}
-            className="shrink-0 rounded-lg border border-gold/30 bg-gold/5 px-3 py-1.5 text-xs font-semibold text-gold transition hover:bg-gold/15 active:scale-95"
-          >
-            Chekni ko'rish
-            {row.receipts.length > 1 && (
-              <span className="ml-1 rounded-full bg-gold/20 px-1 text-[10px]">{row.receipts.length}</span>
-            )}
-          </button>
-        )}
-      </div>
-    </div>
-  )
-}
-
 // ─── page ─────────────────────────────────────────────────────────────────────
 
 export default function WorkerDetailPage() {
@@ -259,7 +96,6 @@ export default function WorkerDetailPage() {
 
   const [worker,       setWorker]       = useState(undefined)
   const [rental,       setRental]       = useState(undefined)
-  const [payments,     setPayments]     = useState([])
   const [media,        setMedia]        = useState([])
   const [error,        setError]        = useState(null)
   const [isEditing,    setIsEditing]    = useState(false)
@@ -270,29 +106,27 @@ export default function WorkerDetailPage() {
     id_card_front: false, id_card_back: false, agreement_video: false,
   })
   const [docError,     setDocError]     = useState(null)
-  const [receiptModal,  setReceiptModal]  = useState(null) // { receipts, amount }
-  const [showEndModal,  setShowEndModal]  = useState(false)
-  const [isEnding,      setIsEnding]      = useState(false)
-  const [endError,      setEndError]      = useState(null)
-  const [showCashModal, setShowCashModal] = useState(false)
-  const [cashAmount,    setCashAmount]    = useState('')
-  const [cashDays,      setCashDays]      = useState('')
-  const [isCashing,     setIsCashing]     = useState(false)
-  const [cashError,     setCashError]     = useState(null)
+  const [showEndModal, setShowEndModal]  = useState(false)
+  const [isEnding,     setIsEnding]      = useState(false)
+  const [endError,     setEndError]      = useState(null)
+
+  // To'lov tasdiqlangandan keyin ijara muddati o'zgaradi — qayta o'qiymiz.
+  const reloadRental = useCallback(
+    () => fetchWorkerRental(id).then(setRental).catch(() => {}),
+    [id],
+  )
 
   useEffect(() => {
     Promise.all([
       fetchWorkerDetail(id),
       fetchWorkerRental(id),
-      fetchWorkerPayments(id),
       fetchWorkerRentalMedia(id),
     ])
-      .then(([workerData, rentalData, paymentsData, mediaData]) => {
+      .then(([workerData, rentalData, mediaData]) => {
         setWorker(workerData)
         setFullName(workerData.full_name)
         setPhone(workerData.phone)
         setRental(rentalData)
-        setPayments(paymentsData)
         setMedia(
           mediaData.map((item) => ({
             id:    item.id,
@@ -339,34 +173,6 @@ export default function WorkerDetailPage() {
       setEndError(err.message)
     } finally {
       setIsEnding(false)
-    }
-  }
-
-  async function handleCashPayment() {
-    const amount = parseInt(cashAmount.replace(/\s/g, ''), 10)
-    if (!amount || amount <= 0) { setCashError('Summani kiriting'); return }
-    if (!rental?.id) { setCashError('Faol ijara topilmadi'); return }
-
-    const days = cashDays ? parseInt(cashDays, 10) : null
-    if (cashDays && (!days || days <= 0)) { setCashError('Kunlar sonini to\'g\'ri kiriting'); return }
-
-    setIsCashing(true)
-    setCashError(null)
-    try {
-      await recordCashPayment(rental.id, amount, days)
-      const [newPayments, newRental] = await Promise.all([
-        fetchWorkerPayments(id),
-        fetchWorkerRental(id),
-      ])
-      setPayments(newPayments)
-      setRental(newRental)
-      setShowCashModal(false)
-      setCashAmount('')
-      setCashDays('')
-    } catch (err) {
-      setCashError(err.message)
-    } finally {
-      setIsCashing(false)
     }
   }
 
@@ -553,50 +359,8 @@ export default function WorkerDetailPage() {
         </section>
       )}
 
-      {/* To'lovlar */}
-      {(() => {
-        const paidPayments    = payments.filter((p) => p.paid_at != null)
-        const pendingPayment  = payments.find((p) => p.paid_at == null && !p.is_fine)
-        const hasPending      = !!pendingPayment && rental && rental.status !== 'completed'
-        return (
-          <section className="mb-4 rounded-xl border border-border bg-surface sm:mb-6">
-            <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-4 sm:px-5">
-              <div>
-                <h2 className="font-bold text-text">To'lovlar tarixi</h2>
-                {paidPayments.length > 0 && (
-                  <p className="mt-0.5 text-xs text-text-muted">{paidPayments.length} ta yozuv</p>
-                )}
-              </div>
-              {hasPending && (
-                <button
-                  type="button"
-                  onClick={() => { setCashAmount(''); setCashDays(''); setCashError(null); setShowCashModal(true) }}
-                  className="flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-400 transition hover:border-emerald-500/50 hover:bg-emerald-500/20 active:scale-95"
-                >
-                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                  </svg>
-                  Naqt oldim
-                </button>
-              )}
-            </div>
-
-            {paidPayments.length === 0 ? (
-              <div className="px-4 py-10 text-center text-sm text-text-muted sm:px-5">
-                {t('worker_detail.no_payments')}
-              </div>
-            ) : (
-              paidPayments.map((row) => (
-                <PaymentRow
-                  key={row.id}
-                  row={row}
-                  onViewReceipt={(r) => setReceiptModal({ receipts: r.receipts, amount: r.amount })}
-                />
-              ))
-            )}
-          </section>
-        )
-      })()}
+      {/* To'lovlar — cheklarni tasdiqlash va naqd to'lov shu yerda */}
+      <WorkerPayments workerId={id} rental={rental} onRentalChange={reloadRental} />
 
       {/* Joylashuv */}
       <section className="rounded-xl border border-border bg-surface p-4 sm:p-6">
@@ -606,97 +370,6 @@ export default function WorkerDetailPage() {
           {t('worker_detail.view_map')}
         </Link>
       </section>
-
-      {/* Chek modal */}
-      {receiptModal && (
-        <ReceiptModal
-          receipts={receiptModal.receipts}
-          amount={receiptModal.amount}
-          onClose={() => setReceiptModal(null)}
-        />
-      )}
-
-      {/* Naqt to'lov modal */}
-      {showCashModal && (() => {
-        const pendingPayment = payments.find((p) => p.paid_at == null && !p.is_fine)
-        return (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4"
-            onClick={() => setShowCashModal(false)}
-          >
-            <div
-              className="w-full max-w-sm rounded-2xl border border-border bg-surface p-6"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3 className="mb-1 text-base font-black text-text">Naqt to'lov</h3>
-              <p className="mb-4 text-sm text-text-muted">
-                Qabul qilingan summani va necha kun qoplaganini kiriting.
-              </p>
-
-              {pendingPayment && (
-                <div className="mb-4 flex items-center justify-between rounded-lg border border-border bg-bg px-3 py-2.5">
-                  <span className="text-xs text-text-muted">Kutilgan summa</span>
-                  <span className="text-sm font-bold text-text">{fmt(pendingPayment.amount)}</span>
-                </div>
-              )}
-
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-text-muted">
-                Qabul qilingan summa (so'm)
-              </label>
-              <input
-                type="number"
-                min="1"
-                placeholder="Masalan: 200000"
-                value={cashAmount}
-                onChange={(e) => setCashAmount(e.target.value)}
-                className="mb-4 w-full rounded-xl border border-border bg-bg px-4 py-3 text-sm font-bold text-text placeholder:text-text-muted focus:border-gold/50 focus:outline-none"
-                autoFocus
-              />
-
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-text-muted">
-                Necha kun qoplaydi? <span className="font-normal normal-case text-text-muted/60">(ixtiyoriy)</span>
-              </label>
-              <input
-                type="number"
-                min="1"
-                placeholder="Masalan: 3"
-                value={cashDays}
-                onChange={(e) => setCashDays(e.target.value)}
-                className="mb-1 w-full rounded-xl border border-border bg-bg px-4 py-3 text-sm font-bold text-text placeholder:text-text-muted focus:border-gold/50 focus:outline-none"
-                onKeyDown={(e) => e.key === 'Enter' && handleCashPayment()}
-              />
-              {cashDays && (
-                <p className="mb-3 text-xs text-text-muted">
-                  Ijara muddati bugundan <span className="font-bold text-gold">{cashDays} kun</span> ga uzaytiriladi.
-                  Barcha jarimalar yopiladi.
-                </p>
-              )}
-              {!cashDays && <div className="mb-3" />}
-
-              {cashError && <p className="mb-3 text-sm text-red-400">{cashError}</p>}
-
-              <div className="flex gap-3">
-                <Button
-                  variant="outline"
-                  fullWidth
-                  onClick={() => setShowCashModal(false)}
-                  disabled={isCashing}
-                >
-                  Bekor qilish
-                </Button>
-                <Button
-                  variant="primary"
-                  fullWidth
-                  onClick={handleCashPayment}
-                  loading={isCashing}
-                >
-                  Tasdiqlash
-                </Button>
-              </div>
-            </div>
-          </div>
-        )
-      })()}
 
       {/* Ijarani yakunlash modal */}
       {showEndModal && (

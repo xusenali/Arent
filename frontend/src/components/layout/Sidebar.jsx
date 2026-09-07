@@ -5,7 +5,6 @@ import {
   GridIcon,
   UsersIcon,
   MapPinIcon,
-  ReceiptIcon,
   BookIcon,
   LogoutIcon,
   ScooterIcon,
@@ -24,7 +23,6 @@ export default function Sidebar({ role }) {
     { to: '/admin/workers', label: t('sidebar.workers'), Icon: UsersIcon },
     { to: '/admin/transports', label: 'Transportlar', Icon: ScooterIcon },
     { to: '/admin/map', label: t('sidebar.map'), Icon: MapPinIcon, soon: true },
-    { to: '/admin/payment-receipts', label: t('sidebar.receipts'), Icon: ReceiptIcon },
     { to: '/admin/archive', label: 'Arxiv', Icon: ArchiveIcon },
   ]
 

@@ -1,8 +1,9 @@
 import datetime
 import math
+from decimal import Decimal
 
 from django.db import transaction
-from django.db.models import Sum
+
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import generics
@@ -10,6 +11,8 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.payments import services as payment_services
+from apps.payments.models import Payment, PaymentReceipt
 from apps.users.models import User
 from apps.users.permissions import IsSuperAdmin, IsWorker
 
@@ -54,15 +57,14 @@ class AdminRentalCreateView(generics.CreateAPIView):
     permission_classes = [IsSuperAdmin]
 
     def perform_create(self, serializer):
-        from apps.rentals.tasks import _period_amount
-        from apps.payments.models import Payment
-
         worker = get_object_or_404(User, id=self.kwargs['worker_id'], role=User.Role.WORKER)
         rental = serializer.save(worker=worker)
 
-        # pay_timing='start' da darhol to'lov yaratamiz (ishchi oldindan to'laydi)
+        # pay_timing='start' — ishchi oldindan to'laydi, qarz darhol yoziladi.
         if rental.pay_timing == Rental.PayTiming.START:
-            Payment.objects.create(rental=rental, amount=_period_amount(rental), is_fine=False)
+            Payment.objects.create(
+                rental=rental, amount=payment_services.period_amount(rental), is_fine=False,
+            )
 
 
 class AdminRentalMediaView(generics.ListCreateAPIView):
@@ -106,9 +108,12 @@ class AdminEndRentalView(APIView):
             if not rental:
                 return Response({'detail': 'Faol ijara topilmadi.'}, status=404)
 
-            from apps.payments.models import Payment
-
-            Payment.objects.filter(rental=rental, is_fine=True, paid_at__isnull=True).delete()
+            # Jarima o'chirilmaydi — kim bekor qilgani ko'rinib turishi uchun
+            # yozuv qoladi (paid_amount=0).
+            payment_services.waive_open_fines(
+                rental, actor=request.user,
+                note=f"Ijara yakunlanganda bekor qilindi ({request.user.full_name})",
+            )
 
             rental.status = Rental.Status.COMPLETED
             rental.save(update_fields=['status'])
@@ -120,38 +125,17 @@ class AdminEndRentalView(APIView):
         return Response({'detail': 'Ijara yakunlandi.'})
 
 
-def _materialize_overdue(rental, today):
+def _prorate(rental, pending_period, today):
+    """Erta yakunlashda haqiqatda foydalanilgan kunlar uchun summa.
+
+    Qaytaradi: ``(summa, foydalanilgan_kunlar)``.
     """
-    pay_timing='end' va due_date <= today bo'lganda ishchi dashboardini ochganda
-    idempotent tarzda chaqiriladi:
-      1. Davr to'lovi yaratilmagan bo'lsa — yaratadi
-      2. Status hali ACTIVE bo'lsa — OVERDUE ga o'tkazadi
-      3. Bugungi kunlik jarima qo'yilmagan bo'lsa — qo'yadi
-    Qaytaradi: yangilangan rental obyektini.
-    """
-    from apps.payments.models import Payment
-    from apps.rentals.tasks import _period_amount, _daily_fine_amount
-
-    with transaction.atomic():
-        rental = Rental.objects.select_for_update().select_related('unit').get(pk=rental.pk)
-
-        if not Payment.objects.filter(rental=rental, is_fine=False, paid_at__isnull=True).exists():
-            Payment.objects.create(rental=rental, amount=_period_amount(rental), is_fine=False)
-
-        if rental.status == Rental.Status.ACTIVE:
-            rental.status = Rental.Status.OVERDUE
-            rental.save(update_fields=['status'])
-
-        if rental.status == Rental.Status.OVERDUE:
-            if not Payment.objects.filter(rental=rental, is_fine=True, created_at__date=today).exists():
-                Payment.objects.create(
-                    rental=rental,
-                    amount=_daily_fine_amount(rental),
-                    is_fine=True,
-                    fine_days_count=1,
-                )
-
-    return rental
+    if not pending_period or not rental.period_days:
+        return 0, 0
+    period_start = rental.due_date - datetime.timedelta(days=rental.period_days)
+    days_used = min(max(1, (today - period_start).days), rental.period_days)
+    amount = math.ceil(Decimal(pending_period.amount) / rental.period_days * days_used)
+    return amount, days_used
 
 
 class WorkerDashboardView(APIView):
@@ -160,9 +144,6 @@ class WorkerDashboardView(APIView):
     permission_classes = [IsWorker]
 
     def get(self, request):
-        from apps.payments.models import Payment, PaymentReceipt
-        from apps.rentals.tasks import _daily_fine_amount
-
         rental = (
             Rental.objects.filter(worker=request.user)
             .exclude(status=Rental.Status.COMPLETED)
@@ -177,42 +158,27 @@ class WorkerDashboardView(APIView):
                 'telegram_connected': bool(request.user.telegram_chat_id),
             })
 
-        today     = timezone.localdate()
+        today = timezone.localdate()
+
+        # Holatni bugungi sanaga moslash — Celery ishlamay qolsa ham dashboard
+        # to'g'ri ma'lumot ko'rsatadi (idempotent).
+        rental = payment_services.sync_rental_state(rental, today)
         days_left = (rental.due_date - today).days
 
-        # pay_timing='end' va muddati o'tgan bo'lsa — lazily to'g'rilash
-        if rental.pay_timing == Rental.PayTiming.END and days_left <= 0:
-            rental = _materialize_overdue(rental, today)
+        pending_period = payment_services.open_period_payment(rental)
+        debt = payment_services.outstanding(rental)
 
-        # Pending davr to'lovi (jarima emas)
-        pending_period = (
-            Payment.objects.filter(rental=rental, is_fine=False, paid_at__isnull=True)
-            .order_by('created_at')
+        last_receipt_status = (
+            PaymentReceipt.objects
+            .filter(payment=pending_period)
+            .order_by('-uploaded_at')
+            .values_list('status', flat=True)
             .first()
+            if pending_period else None
         )
 
-        # Jami ochiq jarimalar
-        total_fine = (
-            Payment.objects.filter(rental=rental, is_fine=True, paid_at__isnull=True)
-            .aggregate(s=Sum('amount'))['s'] or 0
-        )
-
-        # Pending to'lov uchun oxirgi chek holati
-        last_receipt_status = None
-        if pending_period:
-            last_receipt = (
-                PaymentReceipt.objects.filter(payment=pending_period)
-                .order_by('-uploaded_at')
-                .first()
-            )
-            last_receipt_status = last_receipt.status if last_receipt else None
-
-        # Pro-rate (erta yakunlash uchun ko'rsatish)
-        last_period_start = rental.due_date - datetime.timedelta(days=rental.period_days)
-        days_used = min(max(1, (today - last_period_start).days), rental.period_days or 1)
-        prorated_amount = 0
-        if pending_period and rental.period_days:
-            prorated_amount = math.ceil(pending_period.amount / rental.period_days * days_used)
+        # Erta yakunlashda to'lanadigan summa (faqat ko'rsatish uchun).
+        prorated_amount, days_used = _prorate(rental, pending_period, today)
 
         return Response({
             'rental_id':              rental.id,
@@ -225,14 +191,14 @@ class WorkerDashboardView(APIView):
             'pay_timing':             rental.pay_timing,
             'period_days':            rental.period_days,
             'has_pending_payment':    pending_period is not None,
-            'pending_payment_amount': pending_period.amount if pending_period else 0,
-            'total_due':              (pending_period.amount if pending_period else 0) + total_fine,
+            'pending_payment_amount': debt.period,
+            'current_fine':           debt.fine,
+            'total_due':              debt.total,
             'prorated_amount':        prorated_amount,
             'days_used':              days_used,
-            'current_fine':           total_fine,
             'last_receipt_status':    last_receipt_status,
             'telegram_connected':     bool(request.user.telegram_chat_id),
-            'daily_fine_rate':        _daily_fine_amount(rental),
+            'daily_fine_rate':        payment_services.daily_fine_amount(rental),
         })
 
 
@@ -253,29 +219,20 @@ class WorkerEndRentalView(APIView):
             if not rental:
                 return Response({'detail': 'Faol ijara topilmadi.'}, status=404)
 
-            from apps.payments.models import Payment
-
             today = timezone.localdate()
 
-            # Pending davr to'lovi
-            pending_period = (
-                Payment.objects.filter(rental=rental, is_fine=False, paid_at__isnull=True)
-                .order_by('created_at')
-                .first()
-            )
-
-            prorated_amount = 0
-            if pending_period and rental.period_days > 0:
-                last_period_start = rental.due_date - datetime.timedelta(days=rental.period_days)
-                days_used = max(1, (today - last_period_start).days)
-                days_used = min(days_used, rental.period_days)
-                daily_rate      = pending_period.amount / rental.period_days
-                prorated_amount = math.ceil(daily_rate * days_used)
+            # Ochiq davr qarzi foydalanilgan kunlarga qarab kamaytiriladi,
+            # lekin yopilmaydi — pul haqiqatda olinmagan.
+            pending_period = payment_services.open_period_payment(rental)
+            prorated_amount, _ = _prorate(rental, pending_period, today)
+            if prorated_amount:
                 pending_period.amount = prorated_amount
-                pending_period.save(update_fields=['amount'])
+                pending_period.note   = 'Erta yakunlash — foydalanilgan kunlar uchun'
+                pending_period.save(update_fields=['amount', 'note'])
 
-            # Ochiq jarimalarni bekor qilish
-            Payment.objects.filter(rental=rental, is_fine=True, paid_at__isnull=True).delete()
+            payment_services.waive_open_fines(
+                rental, actor=request.user, note='Ishchi ijarani erta yakunladi',
+            )
 
             # Ijarani yakunlash
             rental.status = Rental.Status.COMPLETED
