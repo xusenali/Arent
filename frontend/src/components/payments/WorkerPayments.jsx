@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Button from '../ui/Button.jsx'
+import Pagination from '../ui/Pagination.jsx'
 import { XIcon } from '../ui/icons.jsx'
 import {
   approvePaymentReceipt,
@@ -15,6 +16,8 @@ import { formatDate } from '../../utils/date.js'
 const fmtSum = (n) => (n == null ? '—' : `${Number(n).toLocaleString('uz-UZ')} so'm`)
 
 const METHOD_LABEL = { cash: 'Naqd', receipt: 'Chek' }
+
+const PAGE_SIZE = 8
 
 /**
  * To'lov tasdiqlangandan keyingi muddat — backend'dagi _due_date_after bilan bir xil.
@@ -433,6 +436,7 @@ export default function WorkerPayments({ workerId, rental, onRentalChange }) {
   const [confirmTarget, setConfirmTarget] = useState(null) // { receipt?, suggest }
   const [rejectTarget,  setRejectTarget]  = useState(null)
   const [zoomSrc,       setZoomSrc]       = useState(null)
+  const [page,          setPage]          = useState(1)
 
   const load = useCallback(
     () => fetchWorkerPayments(workerId).then(setPayments).catch((err) => setError(err.message)),
@@ -451,12 +455,24 @@ export default function WorkerPayments({ workerId, rental, onRentalChange }) {
     }
   }, [payments])
 
+  const paged = useMemo(
+    () => (payments ?? []).slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [payments, page],
+  )
+
+  // Yozuvlar kamayib sahifa chegaradan chiqib qolsa — oxirgi sahifaga qaytamiz.
+  useEffect(() => {
+    const lastPage = Math.max(1, Math.ceil((payments?.length ?? 0) / PAGE_SIZE))
+    if (page > lastPage) setPage(lastPage)
+  }, [payments, page])
+
   /** To'lov yoki chek tasdiqlangach — jadval ham, ijara ham yangilanadi. */
   async function refresh() {
     await load()
     onRentalChange?.()
     setConfirmTarget(null)
     setRejectTarget(null)
+    setPage(1)   // yangi yozuv ro'yxat boshida paydo bo'ladi
   }
 
   async function handleConfirm({ amount, days, note }) {
@@ -497,7 +513,6 @@ export default function WorkerPayments({ workerId, rental, onRentalChange }) {
             <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
             </svg>
-            +
           </button>
         )}
         {canTakeCash && (
@@ -530,21 +545,34 @@ export default function WorkerPayments({ workerId, rental, onRentalChange }) {
           Hozircha to'lov yozuvi yo'q
         </p>
       ) : (
-        payments.map((row) => (
-          <PaymentRow
-            key={row.id}
-            row={row}
-            onZoom={setZoomSrc}
-            onReject={setRejectTarget}
-            onApprove={(receipt, payment) =>
-              setConfirmTarget({
-                receipt,
-                suggest: Number(payment.amount) + openFine,
-                closesOpenCharge: true,
-              })
-            }
-          />
-        ))
+        <>
+          {paged.map((row) => (
+            <PaymentRow
+              key={row.id}
+              row={row}
+              onZoom={setZoomSrc}
+              onReject={setRejectTarget}
+              onApprove={(receipt, payment) =>
+                setConfirmTarget({
+                  receipt,
+                  suggest: Number(payment.amount) + openFine,
+                  closesOpenCharge: true,
+                })
+              }
+            />
+          ))}
+
+          {payments.length > PAGE_SIZE && (
+            <div className="border-t border-border px-4 py-3 sm:px-5">
+              <Pagination
+                page={page}
+                total={payments.length}
+                pageSize={PAGE_SIZE}
+                onChange={setPage}
+              />
+            </div>
+          )}
+        </>
       )}
 
       {confirmTarget && (

@@ -3,16 +3,14 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import StatusBadge from '../../components/ui/StatusBadge.jsx'
 import ConfirmModal from '../../components/ui/ConfirmModal.jsx'
-import Button from '../../components/ui/Button.jsx'
-import {
-  EyeIcon, PencilIcon, TrashIcon,
-  SearchIcon, ChevronLeftIcon, ChevronRightIcon,
-} from '../../components/ui/icons.jsx'
+import Pagination from '../../components/ui/Pagination.jsx'
+import { EyeIcon, PencilIcon, TrashIcon, SearchIcon } from '../../components/ui/icons.jsx'
 import { deleteWorker, fetchWorkers } from '../../api/adminApi.js'
 
 // ─── constants ────────────────────────────────────────────────────────────────
 
-const PAGE_SIZE   = 10
+const PAGE_SIZE = 10
+
 // ─── shared ui ────────────────────────────────────────────────────────────────
 
 function EmptyState({ text }) {
@@ -34,60 +32,6 @@ function SearchInput({ value, onChange, placeholder = "Ism yoki telefon..." }) {
         placeholder={placeholder}
         className="w-full rounded-xl border border-border bg-surface py-2.5 pl-9 pr-4 text-sm text-text placeholder:text-text-muted focus:border-gold focus:outline-none transition-colors"
       />
-    </div>
-  )
-}
-
-function Pagination({ page, total, onChange }) {
-  const totalPages = Math.ceil(total / PAGE_SIZE)
-  if (totalPages <= 1) return null
-  return (
-    <div className="mt-4 flex items-center justify-between text-sm">
-      <span className="text-xs text-text-muted">{total} ta · {page}/{totalPages} sahifa</span>
-      <div className="flex items-center gap-1">
-        <button
-          type="button"
-          disabled={page === 1}
-          onClick={() => onChange(page - 1)}
-          className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-text-muted hover:border-gold/40 hover:text-text disabled:opacity-30"
-        >
-          <ChevronLeftIcon className="h-4 w-4" />
-        </button>
-        {Array.from({ length: totalPages }, (_, i) => i + 1)
-          .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
-          .reduce((acc, p, i, arr) => {
-            if (i > 0 && p - arr[i - 1] > 1) acc.push('…')
-            acc.push(p)
-            return acc
-          }, [])
-          .map((p, i) =>
-            p === '…' ? (
-              <span key={`e${i}`} className="px-1 text-text-muted">…</span>
-            ) : (
-              <button
-                key={p}
-                type="button"
-                onClick={() => onChange(p)}
-                className={[
-                  'flex h-8 min-w-[2rem] items-center justify-center rounded-lg border px-2 text-xs font-bold transition-all',
-                  p === page
-                    ? 'border-gold bg-gold/10 text-gold'
-                    : 'border-border text-text-muted hover:border-gold/40 hover:text-text',
-                ].join(' ')}
-              >
-                {p}
-              </button>
-            )
-          )}
-        <button
-          type="button"
-          disabled={page === totalPages}
-          onClick={() => onChange(page + 1)}
-          className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-text-muted hover:border-gold/40 hover:text-text disabled:opacity-30"
-        >
-          <ChevronRightIcon className="h-4 w-4" />
-        </button>
-      </div>
     </div>
   )
 }
@@ -199,7 +143,9 @@ function WorkersList({ t }) {
         </div>
       )}
 
-      <Pagination page={page} total={filtered.length} onChange={setPage} />
+      <div className="mt-4">
+        <Pagination page={page} total={filtered.length} pageSize={PAGE_SIZE} onChange={setPage} />
+      </div>
 
       <ConfirmModal
         open={Boolean(deleting)}
