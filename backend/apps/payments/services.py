@@ -62,6 +62,13 @@ def parse_amount(raw) -> Decimal:
     return value.quantize(Decimal('1.00'))
 
 
+def parse_optional_amount(raw) -> Decimal | None:
+    """Bo'sh qoldirilsa ``None`` — "Naqd oldim"/minus da summa ixtiyoriy."""
+    if raw is None or str(raw).strip() == '':
+        return None
+    return parse_amount(raw)
+
+
 def parse_days(raw) -> int:
     """Admin kiritgan 'necha kunga amal qiladi' qiymatini tekshiradi."""
     if raw is None or raw == '':
@@ -194,7 +201,8 @@ def sync_rental_state(rental, today: datetime.date | None = None):
 
 # ─── to'lovni tasdiqlash ─────────────────────────────────────────────────────
 
-def _due_date_after(rental, days: int, closes_open_charge: bool) -> datetime.date:
+def _due_date_after(rental, days: int, closes_open_charge: bool,
+                    add_days: bool = False) -> datetime.date:
     """To'lov tasdiqlangandan keyingi ``due_date``.
 
     Muhim nuqta: ochiq davr qarzi *allaqachon* ``due_date`` bilan berilgan
@@ -212,8 +220,13 @@ def _due_date_after(rental, days: int, closes_open_charge: bool) -> datetime.dat
 
     Ochiq qarz bo'lmasa (ishchi oldindan qo'shimcha to'lasa) — kun mavjud
     muddat ustiga qo'shiladi.
+
+    ``add_days=True`` — "Naqd oldim" tugmasi uchun: bu qo'lda kiritilgan
+    tuzatish, ya'ni admin "shuncha kun qo'shdim" deydi. Bunda kun har doim
+    mavjud muddat ustiga qo'shiladi, chunki bu mavjud hisob-fakturani
+    yopish emas, balki muddatni uzaytirish.
     """
-    if not closes_open_charge:
+    if add_days or not closes_open_charge:
         return rental.due_date + datetime.timedelta(days=days)
 
     period_start = rental.due_date - datetime.timedelta(days=rental.period_days)
@@ -221,17 +234,21 @@ def _due_date_after(rental, days: int, closes_open_charge: bool) -> datetime.dat
 
 
 @transaction.atomic
-def confirm_payment(*, rental, amount: Decimal, days: int, method: str, actor,
-                    receipt=None, note: str = '') -> Payment:
-    """Admin to'lovni tasdiqlaydi: ``amount`` so'm olindi, ``days`` kunga amal qiladi.
+def confirm_payment(*, rental, amount: Decimal | None, days: int, method: str, actor,
+                    receipt=None, note: str = '', add_days: bool = False) -> Payment:
+    """Admin to'lovni tasdiqlaydi: ``days`` kunga amal qiladi.
 
-    Naqd to'lov ham, chek tasdiqlash ham ayni shu yo'ldan o'tadi.
+    Chek tasdiqlash ham, "Naqd oldim" ham shu yo'ldan o'tadi, lekin ikkisi
+    muddatni har xil hisoblaydi (``add_days`` ga qarang).
+
+    ``amount`` **ixtiyoriy**. Berilmasa (naqd tuzatishda pul muhim bo'lmasa),
+    faqat kun yoziladi: ochiq qarzga tegilmaydi va daftarga ``paid_amount=0``
+    bo'lgan alohida yozuv tushadi.
 
     Bajariladigan ishlar:
-      * ochiq davr qarzi yopiladi (yo'q bo'lsa — yangi yozuv yaratiladi);
-      * ``due_date`` aynan ``days`` kunga uzaytiriladi — bugundan emas, mavjud
-        muddatdan, shu tufayli kechikkan kunlar bepul qolib ketmaydi;
-      * ochiq jarimalar shu to'lov ichida yopilgan deb belgilanadi;
+      * summa berilgan bo'lsa — ochiq davr qarzi yopiladi (yo'q bo'lsa yangi
+        yozuv yaratiladi) va ochiq jarimalar shu to'lov ichida yopiladi;
+      * ``due_date`` ``days`` kunga o'zgaradi;
       * yangi ``due_date`` ga qarab ijara ACTIVE yoki OVERDUE bo'ladi.
     """
     from apps.rentals.models import Rental
@@ -241,13 +258,14 @@ def confirm_payment(*, rental, amount: Decimal, days: int, method: str, actor,
         raise PaymentError("Ijara yakunlangan, to'lov qabul qilib bo'lmaydi.")
 
     now = timezone.now()
+    money = amount is not None and amount > 0
 
     if receipt is not None:
         payment = Payment.objects.select_for_update().get(pk=receipt.payment_id)
         if payment.paid_at is not None:
             raise PaymentError("Bu to'lov allaqachon tasdiqlangan.")
         closes_open_charge = True
-    else:
+    elif money:
         existing = open_period_payment(rental)
         closes_open_charge = existing is not None
         payment = (
@@ -255,26 +273,31 @@ def confirm_payment(*, rental, amount: Decimal, days: int, method: str, actor,
             if existing else
             Payment.objects.create(rental=rental, amount=amount, is_fine=False)
         )
+    else:
+        # Summasiz: ochiq qarzga tegilmaydi, faqat kun yoziladi.
+        closes_open_charge = False
+        payment = Payment.objects.create(rental=rental, amount=0, is_fine=False)
 
-    payment.amount       = amount
-    payment.paid_amount  = amount
+    payment.amount       = amount if money else 0
+    payment.paid_amount  = amount if money else 0
     payment.covered_days = days
     payment.method       = method
     payment.received_by  = actor
     payment.paid_at      = now
-    payment.note         = note[:255]
+    payment.note         = note[:255] or ('' if money else f"Faqat kun qo'shildi (+{days})")
     payment.save(update_fields=[
         'amount', 'paid_amount', 'covered_days', 'method',
         'received_by', 'paid_at', 'note',
     ])
 
-    # Ochiq jarimalar shu tasdiqlash ichida yopiladi. paid_amount=0 — pul
-    # faqat yuqoridagi yozuvda hisoblanadi, daromad ikki marta sanalmaydi.
-    Payment.objects.filter(
-        rental_id=rental.pk, is_fine=True, paid_at__isnull=True,
-    ).update(paid_at=now, paid_amount=0, settled_by=payment, received_by=actor)
+    if money:
+        # Ochiq jarimalar shu tasdiqlash ichida yopiladi. paid_amount=0 — pul
+        # faqat yuqoridagi yozuvda hisoblanadi, daromad ikki marta sanalmaydi.
+        Payment.objects.filter(
+            rental_id=rental.pk, is_fine=True, paid_at__isnull=True,
+        ).update(paid_at=now, paid_amount=0, settled_by=payment, received_by=actor)
 
-    rental.due_date = _due_date_after(rental, days, closes_open_charge)
+    rental.due_date = _due_date_after(rental, days, closes_open_charge, add_days)
     rental.status = (
         Rental.Status.ACTIVE if rental.due_date >= timezone.localdate()
         else Rental.Status.OVERDUE
@@ -450,7 +473,8 @@ def settle_and_close_rental(rental, *, actor, today: datetime.date | None = None
 # ─── to'lovni orqaga qaytarish (tuzatish) ────────────────────────────────────
 
 @transaction.atomic
-def subtract_payment(*, rental, amount: Decimal, days: int, actor, note: str = '') -> Payment:
+def subtract_payment(*, rental, amount: Decimal | None, days: int, actor,
+                     note: str = '') -> Payment:
     """``confirm_payment`` ning teskarisi: kun ham, pul ham ayiriladi.
 
     Admin xato summa yoki xato kun kiritganda, yoxud ishchidan pul qaytarib
@@ -469,10 +493,11 @@ def subtract_payment(*, rental, amount: Decimal, days: int, actor, note: str = '
     if rental.status == Rental.Status.COMPLETED:
         raise PaymentError('Ijara yakunlangan, tuzatish kiritib bo\'lmaydi.')
 
+    money = amount if (amount is not None and amount > 0) else Decimal(0)
     correction = Payment.objects.create(
         rental=rental,
-        amount=-amount,
-        paid_amount=-amount,
+        amount=-money,
+        paid_amount=-money,
         is_fine=False,
         method=Payment.Method.CASH,
         received_by=actor,

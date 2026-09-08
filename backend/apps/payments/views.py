@@ -21,7 +21,7 @@ from . import services
 from .models import Payment, PaymentCard, PaymentReceipt
 from .serializers import (
     AdminWorkerPaymentSerializer,
-    CashPaymentSerializer,
+    DaysAdjustmentSerializer,
     ConfirmPaymentSerializer,
     PaymentCardSerializer,
     ReceiptInlineSerializer,
@@ -144,15 +144,16 @@ class RejectReceiptView(APIView):
 
 
 class AdminCashPaymentView(APIView):
-    """POST /api/admin/cash-payment  { rental_id, amount, days, note? }
+    """POST /api/admin/cash-payment  { rental_id, days, amount?, note? }
 
-    "Naqd oldim" — admin pulni qo'lda qabul qilgani va necha kunni qoplashini yozadi.
+    "Naqd oldim" — admin qo'lda kun qo'shadi: ``due_date`` shuncha kunga
+    **uzayadi**. Summa ixtiyoriy; berilmasa faqat kun yoziladi.
     """
 
     permission_classes = [IsSuperAdmin]
 
     def post(self, request):
-        payload = CashPaymentSerializer(data=request.data)
+        payload = DaysAdjustmentSerializer(data=request.data)
         payload.is_valid(raise_exception=True)
 
         rental = get_object_or_404(
@@ -164,11 +165,12 @@ class AdminCashPaymentView(APIView):
         try:
             payment = services.confirm_payment(
                 rental=rental,
-                amount=services.parse_amount(payload.validated_data['amount']),
+                amount=services.parse_optional_amount(payload.validated_data.get('amount')),
                 days=services.parse_days(payload.validated_data['days']),
                 method=Payment.Method.CASH,
                 actor=request.user,
                 note=payload.validated_data.get('note', ''),
+                add_days=True,
             )
         except services.PaymentError as exc:
             return _bad_request(exc)
@@ -182,16 +184,16 @@ class AdminCashPaymentView(APIView):
 
 
 class AdminPaymentCorrectionView(APIView):
-    """POST /api/admin/payment-correction  { rental_id, amount, days, note? }
+    """POST /api/admin/payment-correction  { rental_id, days, amount?, note? }
 
-    "Naqd oldim" ning teskarisi: kiritilgan kun ijara muddatidan ayiriladi,
-    summa esa manfiy yozuv sifatida daftarga tushadi.
+    "Naqd oldim" ning teskarisi: kiritilgan kun ijara muddatidan **ayiriladi**.
+    Summa ixtiyoriy; berilsa manfiy yozuv sifatida daftarga tushadi.
     """
 
     permission_classes = [IsSuperAdmin]
 
     def post(self, request):
-        payload = CashPaymentSerializer(data=request.data)
+        payload = DaysAdjustmentSerializer(data=request.data)
         payload.is_valid(raise_exception=True)
 
         rental = get_object_or_404(
@@ -203,7 +205,7 @@ class AdminPaymentCorrectionView(APIView):
         try:
             correction = services.subtract_payment(
                 rental=rental,
-                amount=services.parse_amount(payload.validated_data['amount']),
+                amount=services.parse_optional_amount(payload.validated_data.get('amount')),
                 days=services.parse_days(payload.validated_data['days']),
                 actor=request.user,
                 note=payload.validated_data.get('note', ''),

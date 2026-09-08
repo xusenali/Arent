@@ -45,8 +45,16 @@ class ConfirmPaymentSerializer(serializers.Serializer):
     note   = serializers.CharField(required=False, allow_blank=True, default='')
 
 
-class CashPaymentSerializer(ConfirmPaymentSerializer):
+class DaysAdjustmentSerializer(serializers.Serializer):
+    """"Naqd oldim" va minus uchun: kun majburiy, summa ixtiyoriy.
+
+    Admin ko'pincha shunchaki "2 kun qo'shdim" deydi — summa muhim emas.
+    """
+
     rental_id = serializers.UUIDField()
+    days      = serializers.IntegerField(min_value=1)
+    amount    = serializers.CharField(required=False, allow_blank=True, allow_null=True, default='')
+    note      = serializers.CharField(required=False, allow_blank=True, default='')
 
 
 class RejectReceiptSerializer(serializers.Serializer):

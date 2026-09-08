@@ -82,19 +82,19 @@ export function rejectPaymentReceipt(id, reason = '') {
   })
 }
 
-/** "Naqd oldim" — admin qo'lda to'lov yozadi: summa + necha kunga amal qiladi. */
+/** "Naqd oldim" — muddatga kun qo'shadi. Summa ixtiyoriy. */
 export function recordCashPayment(rentalId, { amount, days, note = '' }) {
   return apiRequest('/api/admin/cash-payment', {
     method: 'POST',
-    body: { rental_id: rentalId, amount: String(amount), days, note },
+    body: { rental_id: rentalId, days, amount: amount ? String(amount) : '', note },
   })
 }
 
-/** Teskarisi: kun ijara muddatidan ayiriladi, summa manfiy yozuv bo'lib tushadi. */
+/** Teskarisi: muddatdan kun ayiradi. Summa ixtiyoriy. */
 export function recordPaymentCorrection(rentalId, { amount, days, note = '' }) {
   return apiRequest('/api/admin/payment-correction', {
     method: 'POST',
-    body: { rental_id: rentalId, amount: String(amount), days, note },
+    body: { rental_id: rentalId, days, amount: amount ? String(amount) : '', note },
   })
 }
 

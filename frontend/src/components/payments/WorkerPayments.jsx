@@ -23,12 +23,18 @@ const METHOD_LABEL = { cash: 'Naqd', receipt: 'Chek' }
  * davrga tegishli, shuning uchun muddat davr boshidan qayta o'lchanadi.
  * Aks holda (oldindan to'lov) kun mavjud muddat ustiga qo'shiladi.
  */
-function nextDueDate({ dueDate, periodDays, days, closesOpenCharge, subtract }) {
+function nextDueDate({ dueDate, periodDays, days, closesOpenCharge, mode }) {
   if (!dueDate || !days) return null
+  const n = Number(days)
+  // Chek tasdiqlash mavjud hisob-fakturani yopadi — muddat davr boshidan
+  // qayta o'lchanadi. "Naqd oldim" va minus esa muddatni to'g'ridan-to'g'ri
+  // uzaytiradi yoki qisqartiradi.
+  const offset =
+    mode === 'subtract' ? -n
+    : mode === 'cash'   ? n
+    : closesOpenCharge  ? n - Number(periodDays || 0)
+    : n
   const d = new Date(`${dueDate}T00:00:00`)
-  const offset = subtract
-    ? -Number(days)
-    : closesOpenCharge ? Number(days) - Number(periodDays || 0) : Number(days)
   d.setDate(d.getDate() + offset)
   return d.toLocaleDateString('uz-UZ', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
@@ -73,6 +79,9 @@ function ImageLightbox({ src, onClose }) {
 function ConfirmPaymentModal({ receipt, rental, suggest, closesOpenCharge, mode, onConfirm, onClose }) {
   const isReceipt = Boolean(receipt)
   const subtract  = mode === 'subtract'
+  // Chekda summa majburiy (chekdagi pul tasdiqlanadi); naqd va minusda esa
+  // asosiysi kun — summa ixtiyoriy.
+  const amountRequired = isReceipt
   const [amount, setAmount] = useState(suggest ? String(suggest) : '')
   const [days,   setDays]   = useState(rental?.period_days ? String(rental.period_days) : '')
   const [note,   setNote]   = useState('')
@@ -85,13 +94,13 @@ function ConfirmPaymentModal({ receipt, rental, suggest, closesOpenCharge, mode,
     periodDays: rental?.period_days,
     days,
     closesOpenCharge,
-    subtract,
+    mode,
   })
 
   async function submit() {
     const amt = Number(digitsOnly(amount))
     const d   = Number(days)
-    if (!amt || amt <= 0)        return setError(subtract ? 'Ayiriladigan summani kiriting.' : 'Olingan summani kiriting.')
+    if (amountRequired && (!amt || amt <= 0)) return setError('Olingan summani kiriting.')
     if (!d || d <= 0 || d > 365) return setError("Kunlar soni 1 va 365 orasida bo'lishi kerak.")
 
     setBusy(true)
@@ -116,8 +125,10 @@ function ConfirmPaymentModal({ receipt, rental, suggest, closesOpenCharge, mode,
           </h3>
           <p className="mb-4 text-sm text-text-muted">
             {subtract
-              ? "Ayiriladigan summani va necha kun orqaga qaytishini kiriting."
-              : 'Olingan summani va necha kunga amal qilishini kiriting.'}
+              ? "Necha kun ayirilishini kiriting. Summa ixtiyoriy."
+              : isReceipt
+                ? 'Olingan summani va necha kunga amal qilishini kiriting.'
+                : "Necha kun qo'shilishini kiriting. Summa ixtiyoriy."}
           </p>
 
           {isReceipt && receipt.receipt_image && (
@@ -139,6 +150,9 @@ function ConfirmPaymentModal({ receipt, rental, suggest, closesOpenCharge, mode,
 
           <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-text-muted">
             {subtract ? 'Ayiriladigan summa' : 'Olingan summa'}
+            {!amountRequired && (
+              <span className="ml-1 font-normal normal-case text-text-muted/60">(ixtiyoriy)</span>
+            )}
           </label>
           <div className="relative mb-4">
             <input
@@ -156,7 +170,7 @@ function ConfirmPaymentModal({ receipt, rental, suggest, closesOpenCharge, mode,
           </div>
 
           <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-text-muted">
-            {subtract ? 'Necha kun orqaga qaytadi?' : 'Necha kunga amal qiladi?'}
+            {subtract ? 'Necha kun ayiriladi?' : "Necha kun qo'shiladi?"}
           </label>
           <div className="relative mb-2">
             <input
@@ -181,17 +195,22 @@ function ConfirmPaymentModal({ receipt, rental, suggest, closesOpenCharge, mode,
             ].join(' ')}>
               {subtract ? (
                 <>
-                  Muddat <span className="font-bold text-red-400">{days} kun orqaga</span> qaytadi.
-                  Keyingi to'lov sanasi:{' '}
+                  Muddatdan <span className="font-bold text-red-400">{days} kun</span> ayiriladi.
+                  Yangi sana:{' '}
                   <span className="font-bold text-text">{newDueDate}</span>.
-                  Summa daftarga manfiy yozuv bo'lib tushadi.
                 </>
-              ) : (
+              ) : isReceipt ? (
                 <>
                   To'lov <span className="font-bold text-gold">{days} kunni</span> qoplaydi.
                   Keyingi to'lov sanasi:{' '}
                   <span className="font-bold text-text">{newDueDate}</span>.
                   Ochiq jarimalar yopiladi.
+                </>
+              ) : (
+                <>
+                  Muddatga <span className="font-bold text-gold">{days} kun</span> qo'shiladi.
+                  Yangi sana:{' '}
+                  <span className="font-bold text-text">{newDueDate}</span>.
                 </>
               )}
             </p>
@@ -219,7 +238,7 @@ function ConfirmPaymentModal({ receipt, rental, suggest, closesOpenCharge, mode,
               loading={busy}
               className={subtract ? '!bg-red-500 !text-white hover:!opacity-90' : undefined}
             >
-              {subtract ? 'Ayirish' : 'Tasdiqlash'}
+              {subtract ? 'Ayirish' : isReceipt ? 'Tasdiqlash' : "Qo'shish"}
             </Button>
           </div>
         </div>
@@ -472,17 +491,13 @@ export default function WorkerPayments({ workerId, rental, onRentalChange }) {
         {canTakeCash && (
           <button
             type="button"
-            onClick={() => setConfirmTarget({
-              receipt: null,
-              suggest: totalOpen || null,
-              closesOpenCharge: openPeriodPayment != null,
-            })}
+            onClick={() => setConfirmTarget({ receipt: null, mode: 'cash' })}
             className="flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-bold text-emerald-400 transition hover:bg-emerald-500/20 active:scale-95"
           >
             <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
             </svg>
-            Naqd oldim
+            +
           </button>
         )}
         {canTakeCash && (
