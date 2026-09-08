@@ -181,6 +181,44 @@ class AdminCashPaymentView(APIView):
         }, status=status.HTTP_201_CREATED)
 
 
+class AdminPaymentCorrectionView(APIView):
+    """POST /api/admin/payment-correction  { rental_id, amount, days, note? }
+
+    "Naqd oldim" ning teskarisi: kiritilgan kun ijara muddatidan ayiriladi,
+    summa esa manfiy yozuv sifatida daftarga tushadi.
+    """
+
+    permission_classes = [IsSuperAdmin]
+
+    def post(self, request):
+        payload = CashPaymentSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+
+        rental = get_object_or_404(
+            Rental.objects.select_related('unit', 'worker'),
+            id=payload.validated_data['rental_id'],
+            status__in=[Rental.Status.ACTIVE, Rental.Status.OVERDUE],
+        )
+
+        try:
+            correction = services.subtract_payment(
+                rental=rental,
+                amount=services.parse_amount(payload.validated_data['amount']),
+                days=services.parse_days(payload.validated_data['days']),
+                actor=request.user,
+                note=payload.validated_data.get('note', ''),
+            )
+        except services.PaymentError as exc:
+            return _bad_request(exc)
+
+        rental.refresh_from_db(fields=['due_date', 'status'])
+        return Response({
+            'payment':       AdminWorkerPaymentSerializer(correction).data,
+            'due_date':      rental.due_date,
+            'rental_status': rental.status,
+        }, status=status.HTTP_201_CREATED)
+
+
 class WorkerReceiptUploadView(APIView):
     """POST /api/worker/payment-receipts — ishchi to'lov chekini yuklaydi."""
 

@@ -3,6 +3,7 @@ from django.urls import path
 from .views import (
     AdminCashPaymentView,
     AdminPaymentCardView,
+    AdminPaymentCorrectionView,
     AdminWorkerPaymentsView,
     ApproveReceiptView,
     RejectReceiptView,
@@ -24,6 +25,10 @@ urlpatterns = [
     ),
     path('api/admin/cash-payment', AdminCashPaymentView.as_view(), name='admin-cash-payment'),
     path('api/admin/payment-card', AdminPaymentCardView.as_view(), name='admin-payment-card'),
+    path(
+        'api/admin/payment-correction',
+        AdminPaymentCorrectionView.as_view(), name='admin-payment-correction',
+    ),
     path(
         'api/worker/payment-receipts',
         WorkerReceiptUploadView.as_view(), name='worker-receipt-upload',

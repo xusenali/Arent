@@ -30,9 +30,11 @@ class Payment(UUIDModel):
     paid_at      = models.DateTimeField(null=True, blank=True)
     paid_amount  = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     method       = models.CharField(max_length=10, choices=Method.choices, null=True, blank=True)
-    covered_days = models.PositiveIntegerField(
+    # Tuzatish yozuvida manfiy bo'ladi (admin kun va pulni orqaga qaytarganda),
+    # shuning uchun PositiveIntegerField emas.
+    covered_days = models.IntegerField(
         null=True, blank=True,
-        help_text="Bu to'lov ijara muddatini necha kunga uzaytirgani.",
+        help_text="Bu to'lov ijara muddatini necha kunga o'zgartirgani.",
     )
     received_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,

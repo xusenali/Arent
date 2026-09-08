@@ -90,6 +90,14 @@ export function recordCashPayment(rentalId, { amount, days, note = '' }) {
   })
 }
 
+/** Teskarisi: kun ijara muddatidan ayiriladi, summa manfiy yozuv bo'lib tushadi. */
+export function recordPaymentCorrection(rentalId, { amount, days, note = '' }) {
+  return apiRequest('/api/admin/payment-correction', {
+    method: 'POST',
+    body: { rental_id: rentalId, amount: String(amount), days, note },
+  })
+}
+
 export function fetchAdminUnits() {
   return apiRequest('/api/admin/units').then((data) => data.results ?? data)
 }

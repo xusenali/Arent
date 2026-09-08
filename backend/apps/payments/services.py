@@ -445,3 +445,47 @@ def settle_and_close_rental(rental, *, actor, today: datetime.date | None = None
     rental.unit.save(update_fields=['status'])
 
     return result
+
+
+# ─── to'lovni orqaga qaytarish (tuzatish) ────────────────────────────────────
+
+@transaction.atomic
+def subtract_payment(*, rental, amount: Decimal, days: int, actor, note: str = '') -> Payment:
+    """``confirm_payment`` ning teskarisi: kun ham, pul ham ayiriladi.
+
+    Admin xato summa yoki xato kun kiritganda, yoxud ishchidan pul qaytarib
+    olinganda ishlatiladi. Yozuv o'chirilmaydi — daftarda alohida manfiy
+    yozuv paydo bo'ladi, shuning uchun tarix va daromad izi buzilmaydi::
+
+        amount = paid_amount = -summa
+        covered_days = -kunlar
+
+    ``due_date`` shuncha kun **orqaga** suriladi va yangi sanaga qarab ijara
+    ACTIVE yoki OVERDUE bo'ladi.
+    """
+    from apps.rentals.models import Rental
+
+    rental = Rental.objects.select_for_update().select_related('unit').get(pk=rental.pk)
+    if rental.status == Rental.Status.COMPLETED:
+        raise PaymentError('Ijara yakunlangan, tuzatish kiritib bo\'lmaydi.')
+
+    correction = Payment.objects.create(
+        rental=rental,
+        amount=-amount,
+        paid_amount=-amount,
+        is_fine=False,
+        method=Payment.Method.CASH,
+        received_by=actor,
+        covered_days=-days,
+        paid_at=timezone.now(),
+        note=note[:255] or f'Tuzatish — {days} kun va summa ayirildi',
+    )
+
+    rental.due_date -= datetime.timedelta(days=days)
+    rental.status = (
+        Rental.Status.ACTIVE if rental.due_date >= timezone.localdate()
+        else Rental.Status.OVERDUE
+    )
+    rental.save(update_fields=['due_date', 'status'])
+
+    return correction
