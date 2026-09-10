@@ -6,6 +6,8 @@ export function loginRequest({ phone, password }) {
     method: 'POST',
     auth: false,
     body: { phone: normalizePhone(phone), password },
+    // Uxlab qolgan server uyg'onishiga vaqt beramiz (Render bepul tarifi).
+    timeoutMs: 90_000,
   }).then((data) => ({
     user: data.user,
     accessToken: data.access,

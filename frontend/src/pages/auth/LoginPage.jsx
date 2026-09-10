@@ -1,16 +1,20 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import Input from '../../components/ui/Input.jsx'
 import Button from '../../components/ui/Button.jsx'
 import { EyeIcon, EyeOffIcon } from '../../components/ui/icons.jsx'
 import { useLogin } from '../../hooks/useLogin.js'
+import { wakeBackend } from '../../api/client.js'
 import { formatPhone, isValidPhone } from '../../utils/formatPhone.js'
 
 export default function LoginPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const { login, isLoading, error } = useLogin()
+  const { login, isLoading, isSlow, error } = useLogin()
+
+  // Foydalanuvchi raqam/parol yozguncha server uyg'onib ulgursin.
+  useEffect(() => { wakeBackend() }, [])
 
   const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
@@ -89,6 +93,12 @@ export default function LoginPage() {
             </Link>
           </div>
         </div>
+
+        {isSlow && !error && (
+          <p className="rounded-lg border border-gold/30 bg-gold/10 px-4 py-3 text-sm text-gold">
+            {t('auth.server_waking')}
+          </p>
+        )}
 
         {error && (
           <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">

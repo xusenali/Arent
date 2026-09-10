@@ -1,11 +1,19 @@
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
+from django.db import DatabaseError, connection
 from django.http import JsonResponse
 from django.urls import include, path
 
 
 def health_check(request):
+    """Keep-alive ping uchun. DB ga ham tegadi — shunda ping faqat gunicorn'ni
+    emas, DB ulanishini ham iliq ushlaydi va DB ishlamasa buni ko'rsatadi."""
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute('SELECT 1')
+    except DatabaseError:
+        return JsonResponse({'status': 'error', 'db': 'unavailable'}, status=503)
     return JsonResponse({'status': 'ok'})
 
 

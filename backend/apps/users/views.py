@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.db.models import Sum
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -140,6 +141,23 @@ class WorkerDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_serializer_class(self):
         return WorkerUpdateSerializer if self.request.method == 'PATCH' else UserSerializer
+
+    def perform_destroy(self, instance):
+        """Ishchini o'chirishdan oldin ijarasini yakunlab, transportini bo'shatadi.
+
+        ``Rental.worker`` FK CASCADE bo'lgani uchun ijara yozuvi ishchi bilan
+        birga o'chib ketadi — shuning uchun transportni O'CHIRISHDAN OLDIN
+        bo'shatish shart, aks holda u ``rented`` holida osilib qoladi.
+        """
+        from apps.rentals import services as rental_services
+
+        with transaction.atomic():
+            rental_services.end_active_rentals(
+                instance.pk,
+                actor=self.request.user,
+                note=f"Ishchi o'chirildi ({self.request.user.full_name})",
+            )
+            instance.delete()
 
 
 class WorkerArchiveListView(generics.ListAPIView):

@@ -16,6 +16,7 @@ from apps.payments.models import Payment, PaymentCard, PaymentReceipt
 from apps.users.models import User
 from apps.users.permissions import IsSuperAdmin, IsWorker
 
+from . import services
 from .models import Rental, RentalMedia
 from .serializers import RentalMediaSerializer, RentalSerializer
 
@@ -177,18 +178,11 @@ class AdminEndRentalView(APIView):
                 return Response({'detail': 'Faol ijara topilmadi.'}, status=404)
 
             # Jarima o'chirilmaydi — kim bekor qilgani ko'rinib turishi uchun
-            # yozuv qoladi (paid_amount=0).
-            payment_services.waive_open_fines(
+            # yozuv qoladi (paid_amount=0). Transport ham shu yerda bo'shaydi.
+            services.end_rental(
                 rental, actor=request.user,
                 note=f"Ijara yakunlanganda bekor qilindi ({request.user.full_name})",
             )
-
-            rental.status = Rental.Status.COMPLETED
-            rental.save(update_fields=['status'])
-
-            from apps.electro_units.models import ElectroUnit
-            rental.unit.status = ElectroUnit.Status.AVAILABLE
-            rental.unit.save(update_fields=['status'])
 
         return Response({'detail': 'Ijara yakunlandi.'})
 
@@ -308,18 +302,10 @@ class WorkerEndRentalView(APIView):
                 pending_period.note   = 'Erta yakunlash — foydalanilgan kunlar uchun'
                 pending_period.save(update_fields=['amount', 'note'])
 
-            payment_services.waive_open_fines(
+            # Ijarani yakunlaydi, jarimalarni bekor qiladi va transportni bo'shatadi.
+            services.end_rental(
                 rental, actor=request.user, note='Ishchi ijarani erta yakunladi',
             )
-
-            # Ijarani yakunlash
-            rental.status = Rental.Status.COMPLETED
-            rental.save(update_fields=['status'])
-
-            # Transportni bo'sh qilish
-            from apps.electro_units.models import ElectroUnit
-            rental.unit.status = ElectroUnit.Status.AVAILABLE
-            rental.unit.save(update_fields=['status'])
 
         return Response({
             'detail': 'Ijara yakunlandi.',

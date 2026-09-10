@@ -81,7 +81,10 @@
     "back_to_login": "← Kirish sahifasiga qaytish",
     "step_phone": "Telefon",
     "step_verify": "Tasdiqlash",
-    "step_password": "Yangi parol"
+    "step_password": "Yangi parol",
+    "server_waking": "Server uyg'onmoqda — birinchi kirish 1 daqiqagacha cho'zilishi mumkin, sahifani yopmang…",
+    "timeout_error": "Server javob bermadi. Internetni tekshirib, qaytadan urinib ko'ring.",
+    "network_error": "Serverga ulanib bo'lmadi. Internet aloqasini tekshiring."
   },
   "rent": {
     "badge": "Katalog",

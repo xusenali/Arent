@@ -5,3 +5,6 @@ class RentalsConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'apps.rentals'
     label = 'rentals'
+
+    def ready(self):
+        from . import signals  # noqa: F401

@@ -9,7 +9,9 @@ from django.db import migrations
 
 
 def drop_table(apps, schema_editor):
-    schema_editor.execute('DROP TABLE IF EXISTS worker_applications CASCADE')
+    # CASCADE — faqat Postgres sintaksisi; sqlite (test bazasi) uni tushunmaydi.
+    cascade = ' CASCADE' if schema_editor.connection.vendor == 'postgresql' else ''
+    schema_editor.execute(f'DROP TABLE IF EXISTS worker_applications{cascade}')
     # Ilova o'chirilgani uchun uning migratsiya tarixi ham kerak emas —
     # aks holda `showmigrations` yo'q ilovani ko'rsatib turadi.
     schema_editor.execute("DELETE FROM django_migrations WHERE app = 'applications'")

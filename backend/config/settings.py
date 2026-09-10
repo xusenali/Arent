@@ -74,6 +74,9 @@ if config('DATABASE_URL', default=''):
         'default': dj_database_url.parse(
             config('DATABASE_URL'),
             conn_max_age=600,
+            # Supabase pooler bo'sh ulanishni uzib qo'yadi; tekshiruvsiz
+            # keyingi so'rov "server closed the connection" bilan 500 qaytaradi.
+            conn_health_checks=True,
             ssl_require=True,
         )
     }
@@ -100,9 +103,9 @@ else:
 
 AUTH_USER_MODEL = 'users.User'
 
-# bcrypt - PBKDF2 ga qaraganda 5-10x tezroq login uchun
+# bcrypt - PBKDF2 ga qaraganda 5-10x tezroq login uchun (10 raund — hashers.py)
 PASSWORD_HASHERS = [
-    'django.contrib.auth.hashers.BCryptSHA256PasswordHasher',
+    'apps.common.hashers.FastBCryptSHA256PasswordHasher',
     'django.contrib.auth.hashers.PBKDF2PasswordHasher',  # eski parollar uchun fallback
 ]
 

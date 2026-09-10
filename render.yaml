@@ -3,8 +3,10 @@ services:
     name: arent-backend
     runtime: python
     rootDir: backend
-    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
-    startCommand: python manage.py migrate --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2
+    # migrate build bosqichida — har uyg'onishda (cold start) qayta ishlamasin.
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate --noinput
+    # gthread: sekin DB so'rovi (Supabase ~150 ms) butun worker'ni band qilmaydi.
+    startCommand: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --threads 4 --worker-class gthread --timeout 60
     envVars:
       - key: DEBUG
         value: false
